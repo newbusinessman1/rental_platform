@@ -1,0 +1,81 @@
+[
+  {
+    "model": "listings.listing",
+    "pk": 1,
+    "fields": {
+      "title": "Sunny apartment in Mainz",
+      "description": "Close to river. Balcony, 2 rooms.",
+      "location": "Mainz",
+      "price": "900.00",
+      "rooms": 2,
+      "housing_type": "apartment",
+      "is_active": true,
+      "owner": 1,
+      "views": 7,
+      "created_at": "2025-01-01T12:00:00Z",
+      "updated_at": "2025-01-01T12:00:00Z"
+    }
+  },
+  {
+    "model": "listings.listing",
+    "pk": 2,
+    "fields": {
+      "title": "Family house Wiesbaden",
+      "description": "Garden, garage, perfect for kids.",
+      "location": "Wiesbaden",
+      "price": "1800.00",
+      "rooms": 4,
+      "housing_type": "house",
+      "is_active": true,
+      "owner": 1,
+      "views": 3,
+      "created_at": "2025-01-02T12:00:00Z",
+      "updated_at": "2025-01-02T12:00:00Z"
+    }
+  },
+  {
+    "model": "listings.searchquery",
+    "pk": 1,
+    "fields": { "user": null, "query": "river", "created_at": "2025-01-03T10:00:00Z" }
+  },
+  {
+    "model": "listings.searchquery",
+    "pk": 2,
+    "fields": { "user": null, "query": "Mainz", "created_at": "2025-01-03T10:05:00Z" }
+  },
+  {
+    "model": "listings.listingview",
+    "pk": 1,
+    "fields": { "listing": 1, "user": null, "created_at": "2025-01-04T09:00:00Z" }
+  },
+  {
+    "model": "listings.listingview",
+    "pk": 2,
+    "fields": { "listing": 1, "user": null, "created_at": "2025-01-04T09:10:00Z" }
+  },
+  {
+    "model": "bookings.booking",
+    "pk": 1,
+    "fields": {
+      "listing": 1, "tenant": 1,
+      "start_date": "2025-10-20", "end_date": "2025-10-25",
+      "confirmed": true, "created_at": "2025-10-10T08:00:00Z"
+    }
+  },
+  {
+    "model": "reviews.review",
+    "pk": 1,
+    "fields": {
+      "listing": 1, "user": 1, "rating": 5,
+      "comment": "Great place, clean and sunny!", "created_at": "2025-10-11T12:00:00Z"
+    }
+  },
+  {
+    "model": "reviews.review",
+    "pk": 2,
+    "fields": {
+      "listing": 2, "user": 1, "rating": 4,
+      "comment": "Nice garden, a bit far from center.", "created_at": "2025-10-12T12:00:00Z"
+    }
+  }
+]
