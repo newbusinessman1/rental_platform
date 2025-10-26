@@ -1,47 +1,33 @@
-# ads/views.py
 from django.db.models import Count
-from rest_framework import viewsets, generics, status, permissions
+from rest_framework import viewsets, generics, status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from .models import Listing, Booking, Review, ViewHistory
-from .serializers import (
-    ListingSerializer, BookingSerializer, ReviewSerializer, ViewHistorySerializer
-)
+from .serializers import ListingSerializer, BookingSerializer, ReviewSerializer, ViewHistorySerializer
 
-# --- Права ---
-class IsHost(permissions.BasePermission):
-    """Только пользователи из группы 'Host' могут создавать/менять Listing/Booking."""
-    def has_permission(self, request, view):
-        if request.method in permissions.SAFE_METHODS:
-            return True
-        user = request.user
-        return bool(user and user.is_authenticated and user.groups.filter(name="Host").exists())
 
-class IsAuthenticatedOrReadOnly(permissions.IsAuthenticatedOrReadOnly):
-    pass
-
-# --- ViewSets ---
 class ListingViewSet(viewsets.ModelViewSet):
     queryset = Listing.objects.all().order_by("-id")
     serializer_class = ListingSerializer
-    # чтение всем, запись только хостам
-    permission_classes = [IsHost]
+    permission_classes = [AllowAny]
+
 
 class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.all().order_by("-id")
     serializer_class = BookingSerializer
-    permission_classes = [permissions.IsAuthenticated]  # бронируют только залогиненные
+    permission_classes = [AllowAny]
+
 
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all().order_by("-id")
     serializer_class = ReviewSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [AllowAny]
 
-# --- Доп. ручки ---
+
 class PopularListingView(generics.ListAPIView):
     serializer_class = ListingSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
         return (
@@ -50,8 +36,9 @@ class PopularListingView(generics.ListAPIView):
             .order_by("-booking_count", "-id")[:10]
         )
 
+
 class SearchStatsView(generics.GenericAPIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
         data = (
@@ -61,12 +48,14 @@ class SearchStatsView(generics.GenericAPIView):
         )
         return Response(list(data))
 
+
 class ViewHistoryView(APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         """
-        Ждём JSON: { "listing": <id> }.
+        Ожидает JSON: { "listing": <id> }.
+        IP и User-Agent вытянем из запроса.
         """
         listing_id = request.data.get("listing")
         if not listing_id:

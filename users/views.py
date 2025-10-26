@@ -1,11 +1,14 @@
-from django.contrib.auth.models import User
-from rest_framework import viewsets, permissions
-from .serializers import UserSerializer
+from django.shortcuts import render, redirect
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login
 
-class UserViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    Минимальный ViewSet: список/детали пользователей (только чтение).
-    """
-    queryset = User.objects.all().order_by("id")
-    serializer_class = UserSerializer
-    permission_classes = [permissions.AllowAny]
+def register_view(request):
+    if request.method == "POST":
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect("home")  # после регистрации — на главную
+    else:
+        form = UserCreationForm()
+    return render(request, "register.html", {"form": form})
