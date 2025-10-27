@@ -1,21 +1,42 @@
 from django import forms
+from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import Profile
 
-class RegisterForm(forms.ModelForm):
-    password = forms.CharField(widget=forms.PasswordInput)
-    role = forms.ChoiceField(choices=Profile.ROLE_CHOICES, initial=Profile.ROLE_GUEST)
+
+ROLE_CHOICES = (
+    ("guest", "Гость"),
+    ("host", "Хост"),
+)
+
+
+class RegisterForm(UserCreationForm):
+    first_name = forms.CharField(label="Имя", max_length=150, required=True)
+    last_name  = forms.CharField(label="Фамилия", max_length=150, required=True)
+    email      = forms.EmailField(label="Email", required=True)
+    role       = forms.ChoiceField(label="Кем вы будете?", choices=ROLE_CHOICES, required=True)
 
     class Meta:
-        model = User
-        fields = ["username", "email", "password"]
+        model  = User
+        fields = (
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "password1",
+            "password2",
+            "role",
+        )
 
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        user.set_password(self.cleaned_data["password"])
-        if commit:
-            user.save()
-            # профиль уже создан сигналом — обновим роль и триггернём sync_groups_with_role
-            user.profile.role = self.cleaned_data["role"]
-            user.profile.save()
-        return user
+    # аккуратное сообщение, если логин занят
+    def clean_username(self):
+        username = self.cleaned_data["username"]
+        if User.objects.filter(username=username).exists():
+            raise forms.ValidationError("Пользователь с таким логином уже существует. Придумайте другой 🙂")
+        return username
+
+    # по желанию — уникальный email (можно убрать, если не нужно)
+    def clean_email(self):
+        email = self.cleaned_data["email"]
+        if User.objects.filter(email=email).exists():
+            raise forms.ValidationError("Пользователь с таким email уже существует.")
+        return email
