@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-4xl mx-auto py-12">
+  <h1 class="text-4xl font-bold mb-4">{{ listing.title }}</h1>
+  {% if listing.cover_image %}
+    <img src="{{ listing.cover_image.url }}" alt="{{ listing.title }}" class="rounded-lg shadow mb-6">
+  {% endif %}
+  <p class="text-gray-700 mb-4">{{ listing.description }}</p>
+  <p class="text-gray-600">📍 {{ listing.location }}</p>
+  <p class="text-gray-800 font-semibold mt-4">💰 {{ listing.price_per_night }} € / ночь</p>
+</div>
+{% endblock %}
