@@ -33,7 +33,12 @@
                 <div class="flex items-center space-x-4">
                     {% if user.is_authenticated %}
                         <span class="text-gray-700">Hi, {{ user.username|default:user.email }}</span>
-                        <a href="{% url 'logout' %}" class="text-gray-700 hover:text-pink-600 transition-colors font-medium">Log out</a>
+                       <form action="{% url 'logout' %}" method="post" class="inline">
+                          {% csrf_token %}
+                          <button type="submit" class="text-gray-700 hover:text-pink-600 transition-colors font-medium">
+                            Log out
+                          </button>
+                        </form>
                     {% else %}
                         <a href="{% url 'login' %}" class="text-gray-700 hover:text-pink-600 transition-colors font-medium">Sign In</a>
                         <a href="{% url 'register' %}" class="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 transition-colors">Sign Up</a>
