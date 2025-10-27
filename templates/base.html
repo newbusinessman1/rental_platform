@@ -1,0 +1,55 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}StayFinder - Find Your Perfect Stay{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { box-sizing: border-box; }
+        .hero-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-hover { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-backdrop { backdrop-filter: blur(4px); }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <a href="{% url 'home' %}" class="text-2xl font-bold text-pink-600">🏠 StayFinder</a>
+                </div>
+
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="{% url 'home' %}" class="text-gray-700 hover:text-pink-600 transition-colors">Explore</a>
+                    <a href="#" class="text-gray-700 hover:text-pink-600 transition-colors">Experiences</a>
+                    <a href="{% url 'listing_create' %}" class="text-gray-700 hover:text-pink-600 transition-colors">Host your home</a>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    {% if user.is_authenticated %}
+                        <span class="text-gray-700">Hi, {{ user.username|default:user.email }}</span>
+                        <a href="{% url 'logout' %}" class="text-gray-700 hover:text-pink-600 transition-colors font-medium">Log out</a>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="text-gray-700 hover:text-pink-600 transition-colors font-medium">Sign In</a>
+                        <a href="{% url 'register' %}" class="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 transition-colors">Sign Up</a>
+                    {% endif %}
+                    <a href="/admin/" class="text-sm text-gray-500 hover:text-gray-700 transition-colors">Admin</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    {% block hero %}{% endblock %}
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
