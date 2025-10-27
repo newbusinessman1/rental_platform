@@ -1,6 +1,7 @@
 # ads/views.py
 
 from django.contrib.auth.decorators import login_required
+from django.contrib import admin
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import ListView, DetailView, TemplateView
 from django.db.models import Count, Avg
@@ -158,3 +159,26 @@ class ViewHistoryView(generics.ListAPIView):
             "when": vh.created_at,
         } for vh in self.get_queryset()[:200]]
         return Response(data)
+
+
+@admin.register(Listing)
+class ListingAdmin(admin.ModelAdmin):
+    list_display = ('id', 'title', 'slug', 'location', 'price_per_night')
+    search_fields = ('title', 'location', 'slug')
+    prepopulated_fields = {'slug': ('title',)}  # ок, даже если у нас slug nullable
+
+@admin.register(Booking)
+class BookingAdmin(admin.ModelAdmin):
+    list_display = ('id', 'listing', 'guest', 'check_in', 'check_out', 'status', 'created_at')
+    list_filter = ('status',)
+    search_fields = ('guest', 'listing__title')
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = ('id', 'listing', 'author', 'rating', 'created_at')
+    list_filter = ('rating',)
+
+@admin.register(ViewHistory)
+class ViewHistoryAdmin(admin.ModelAdmin):
+    list_display = ('id', 'listing', 'user', 'ip_address', 'created_at')
+    search_fields = ('ip_address', 'user_agent', 'listing__title')
