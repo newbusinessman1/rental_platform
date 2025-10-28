@@ -284,6 +284,32 @@ class MyBookingsHostView(ListView):
             .order_by("-created_at", "-id")
         )
 
+from django.http import Http404
+
+def _same_email(a: str, b: str) -> bool:
+    return (a or "").strip().lower() == (b or "").strip().lower()
+
+@login_required
+def booking_detail(request, pk: int):
+    """
+    Детали бронирования.
+    Доступ: либо гость-инициатор (booking.guest == user.email),
+            либо владелец объявления (listing.owner_email == user.email),
+            либо staff/superuser.
+    """
+    booking = get_object_or_404(Booking.objects.select_related("listing"), pk=pk)
+
+    user = request.user
+    can_view = (
+        _same_email(booking.guest, getattr(user, "email", "")) or
+        _same_email(getattr(booking.listing, "owner_email", ""), getattr(user, "email", "")) or
+        user.is_staff or user.is_superuser
+    )
+    if not can_view:
+        raise Http404("Booking not found")
+
+    return render(request, "ads/booking_detail.html", {"booking": booking})
+
 
 @login_required
 def booking_approve(request, pk):

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Booking #{{ booking.id }} — StayFinder{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto py-10">
+  <h1 class="text-3xl font-bold mb-6">Детали бронирования</h1>
+
+  <div class="bg-white rounded-xl shadow p-6 space-y-4">
+    <div class="flex items-center justify-between">
+      <div class="text-xl font-semibold">{{ booking.listing.title }}</div>
+      <a href="{% url 'ads:listing_detail' slug=booking.listing.slug %}"
+         class="text-pink-600 hover:text-pink-700">Открыть объявление →</a>
+    </div>
+
+    <div class="text-gray-700">
+      <div>📍 Локация: <span class="font-medium">{{ booking.listing.location }}</span></div>
+      <div>🧑‍💼 Гость (email): <span class="font-medium">{{ booking.guest }}</span></div>
+      <div>📅 Даты: <span class="font-medium">{{ booking.check_in }}</span> → <span class="font-medium">{{ booking.check_out }}</span></div>
+      <div>
+        🏷️ Статус:
+        {% if booking.status == "approved" %}
+          <span class="px-2 py-1 rounded bg-green-100 text-green-800">Approved</span>
+        {% elif booking.status == "declined" %}
+          <span class="px-2 py-1 rounded bg-red-100 text-red-800">Declined</span>
+        {% else %}
+          <span class="px-2 py-1 rounded bg-yellow-100 text-yellow-800">Pending</span>
+        {% endif %}
+      </div>
+      <div>🕒 Создано: {{ booking.created_at }}</div>
+    </div>
+  </div>
+
+  <div class="mt-6">
+    <a href="{% url 'ads:my_bookings_guest' %}" class="text-gray-700 hover:text-gray-900">← Вернуться к моим броням</a>
+  </div>
+</div>
+{% endblock %}

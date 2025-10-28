@@ -19,14 +19,25 @@
             <div class="font-semibold">{{ b.listing.title }}</div>
             <div class="text-sm text-gray-600">
               Даты:
-              {% if b.start_date %}{{ b.start_date|date:"d.m.Y" }}{% else %}—{% endif %}
+              {% if b.check_in %}{{ b.check_in|date:"d.m.Y" }}{% else %}—{% endif %}
               →
-              {% if b.end_date %}{{ b.end_date|date:"d.m.Y" }}{% else %}—{% endif %}
-              • Статус: <span class="font-medium">{{ b.status }}</span>
+              {% if b.check_out %}{{ b.check_out|date:"d.m.Y" }}{% else %}—{% endif %}
+              • Статус:
+              {% if b.status == "approved" %}
+                <span class="px-2 py-0.5 rounded bg-green-100 text-green-800">approved</span>
+              {% elif b.status == "declined" %}
+                <span class="px-2 py-0.5 rounded bg-red-100 text-red-800">declined</span>
+              {% else %}
+                <span class="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800">pending</span>
+              {% endif %}
             </div>
           </div>
-          <a href="{% url 'ads:listing_detail' slug=b.listing.slug %}"
-             class="text-pink-600 hover:text-pink-700">open</a>
+
+          <!-- ВЕДЁТ НА ДЕТАЛИ БРОНИ -->
+          <a href="{% url 'ads:booking_detail' pk=b.id %}"
+             class="px-3 py-2 rounded bg-gray-800 text-white hover:bg-gray-900">
+            Open
+          </a>
         </div>
       {% endfor %}
     </div>
