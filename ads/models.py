@@ -86,11 +86,11 @@ class ViewHistory(models.Model):
     class Meta:
         db_table = "ads_viewhistory"
         ordering = ["-created_at"]
-        managed = False
+        managed = False  # Django не меняет таблицу в БД
 
     listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name="views")
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    created_at = models.DateTimeField(db_column="viewed_at")  # существующее поле
+    created_at = models.DateTimeField(auto_now_add=True, db_column="viewed_at")  # ✅ авто-время
     ip_address = models.GenericIPAddressField(null=True, blank=True, db_column="ip")
     user_agent = models.TextField(blank=True)
 
