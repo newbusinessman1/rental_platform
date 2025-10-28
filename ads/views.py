@@ -97,9 +97,12 @@ def booking_create(request, slug):
         if form.is_valid():
             booking = form.save(commit=False)
             booking.listing = listing
-            booking.guest = request.user
+            # В БД колонка user_email (строка), маппится на поле guest:
+            booking.guest = request.user.email or ""
+            # В БД created_at NOT NULL — выставляем вручную:
+            booking.created_at = timezone.now()
             booking.save()
-            return redirect("booking_success", slug=listing.slug)
+            return redirect("ads:booking_success", slug=listing.slug)
     else:
         form = BookingForm()
     return render(request, "ads/booking_form.html", {"form": form, "listing": listing})
