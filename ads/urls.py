@@ -1,36 +1,39 @@
 # ads/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+
 from .views import (
     ListingViewSet, BookingViewSet, ReviewViewSet,
     PopularListingView, SearchStatsView, ViewHistoryView,
-    ListingDetailView, listing_create, booking_create, booking_success,
-    MyListingsView,
+    ListingDetailView, listing_create, booking_create, BookingSuccessView,
+    MyListingsView, MyBookingsHostView, booking_approve, booking_decline,
 )
 
 app_name = "ads"
 
+# DRF router
 router = DefaultRouter()
-router.register(r'listings', ListingViewSet, basename='listing')
-router.register(r'bookings', BookingViewSet, basename='booking')
-router.register(r'reviews', ReviewViewSet, basename='review')
+router.register(r"listings", ListingViewSet, basename="listing")
+router.register(r"bookings", BookingViewSet, basename="booking")
+router.register(r"reviews", ReviewViewSet, basename="review")
 
 urlpatterns = [
     # HTML
-    path("my-listings/", MyListingsView.as_view(), name="my_listings"),
     path("listing/new/", listing_create, name="listing_create"),
     path("listing/<slug:slug>/", ListingDetailView.as_view(), name="listing_detail"),
-    path("listing/<slug:slug>/book/", booking_create, name="booking_create"),   # ← ДОБАВЬ ЭТО
-    path("listing/<slug:slug>/book/success/", booking_success, name="booking_success"),
+    path("listing/<slug:slug>/book/", booking_create, name="booking_create"),
+    path("listing/<slug:slug>/book/success/", BookingSuccessView.as_view(), name="booking_success"),
 
-    # если хочем отдельный URL без slug — можем дать ему ДРУГОЕ имя:
-    # path("booking/success/", booking_success, name="booking_success_plain"),
+    path("my-listings/", MyListingsView.as_view(), name="my_listings"),
+    path("host/bookings/", MyBookingsHostView.as_view(), name="my_bookings_host"),
+    path("booking/<int:pk>/approve/", booking_approve, name="booking_approve"),
+    path("booking/<int:pk>/decline/", booking_decline, name="booking_decline"),
 
-    # JSON
+    # простые JSON-эндоинты
     path("popular-listings/", PopularListingView.as_view(), name="popular_listings"),
     path("search-stats/", SearchStatsView.as_view(), name="search_stats"),
     path("view-history/", ViewHistoryView.as_view(), name="view_history"),
 
-    # DRF
+    # DRF под /ads/api/
     path("api/", include(router.urls)),
 ]

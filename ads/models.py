@@ -23,7 +23,7 @@ class Listing(models.Model):
     price_per_night = models.DecimalField(max_digits=10, decimal_places=2,
                                           db_column="price_per_night", blank=True, null=True)
 
-    # Эта колонка у тебя есть в БД (см. скрин) — добавляем в модель
+    # Эта колонка у меня есть в БД  — добавляем в модель
     created_at = models.DateTimeField(blank=True, null=True, db_column="created_at")
 
     owner_email = models.EmailField(db_column="owner_email", blank=True, default="")
@@ -53,15 +53,25 @@ class Booking(models.Model):
         ordering = ["-created_at"]
         managed = False
 
+    STATUS_PENDING = "pending"
+    STATUS_APPROVED = "approved"
+    STATUS_DECLINED = "declined"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_APPROVED, "Approved"),
+        (STATUS_DECLINED, "Declined"),
+    ]
+
+
     listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name="bookings")
     guest = models.EmailField(max_length=254, db_column="user_email")
     check_in = models.DateField(db_column="start_date")
     check_out = models.DateField(db_column="end_date")
-    status = models.CharField(max_length=20, default="pending")
+    status = models.CharField(max_length=20, default=STATUS_PENDING, choices=STATUS_CHOICES)
     created_at = models.DateTimeField()  # есть в БД, берем как есть
 
     def __str__(self):
-        return f"Бронь {self.listing} от {self.guest} ({self.check_in}–{self.check_out})"
+        return f"{self.guest} -> {self.listing} [{self.status}]"
 
 
 # ---------- Review -> ads_review ----------
@@ -96,3 +106,5 @@ class ViewHistory(models.Model):
 
     def __str__(self):
         return f"View {self.listing} at {self.created_at}"
+
+

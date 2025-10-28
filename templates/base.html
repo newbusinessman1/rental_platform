@@ -2,63 +2,88 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}StayFinder - Find Your Perfect Stay{% endblock %}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { box-sizing: border-box; }
-        .hero-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .card-hover { transition: transform 0.3s ease, box-shadow 0.3s ease; }
-        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-        .modal-backdrop { backdrop-filter: blur(4px); }
-    </style>
-    {% block extra_head %}{% endblock %}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}StayFinder - Find Your Perfect Stay{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { box-sizing: border-box; }
+    .hero-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .card-hover { transition: transform .3s ease, box-shadow .3s ease; }
+    .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,.1); }
+    .modal-backdrop { backdrop-filter: blur(4px); }
+  </style>
+  {% block extra_head %}{% endblock %}
 </head>
 <body class="bg-gray-50">
-    <!-- Navigation -->
-    <nav class="bg-white shadow-sm border-b">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center">
-                    <a href="{% url 'home' %}" class="text-2xl font-bold text-pink-600">🏠 StayFinder</a>
-                </div>
 
-                <div class="hidden md:flex items-center space-x-8">
-                    <a href="#" class="text-gray-700 hover:text-pink-600 transition-colors">Explore</a>
-                    <a href="#" class="text-gray-700 hover:text-pink-600 transition-colors">Experiences</a>
-                    {% if user.is_authenticated %}
-                      <a href="{% url 'ads:listing_create' %}" class="text-gray-700 hover:text-pink-600">Add listing</a>
-                    {% endif %}
-                </div>
-
-                <div class="flex items-center space-x-4">
-                    {% if user.is_authenticated %}
-                        <span class="text-gray-700">Hi, {{ user.username|default:user.email }}</span>
-                           <form action="{% url 'users:logout' %}" method="post" class="inline">
-                              {% csrf_token %}
-                              <input type="hidden" name="next" value="{% url 'home' %}">
-                              <button type="submit" class="text-gray-700 hover:text-pink-600 transition-colors font-medium">
-                                Log out
-                              </button>
-                           </form>
-                        <span <a href="{% url 'ads:my_listings' %}" class="...">My listings</a></span>
-                    {% else %}
-                        <a href="{% url 'users:login' %}?next={% url 'home' %}" class="text-gray-700 hover:text-pink-600 transition-colors font-medium">Sign In</a>
-                        <a href="{% url 'users:register' %}" class="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 transition-colors">Sign Up</a>
-                    {% endif %}
-                    <a href="/admin/" class="text-sm text-gray-500 hover:text-gray-700 transition-colors">Admin</a>
-                </div>
-            </div>
+  <!-- NAV -->
+  <nav class="bg-white shadow-sm border-b">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <!-- logo -->
+        <div class="flex items-center">
+          <a href="{% url 'home' %}" class="text-2xl font-bold text-pink-600">🏠 StayFinder</a>
         </div>
-    </nav>
 
-    {% block hero %}{% endblock %}
+        <!-- main links -->
+        <div class="hidden md:flex items-center space-x-8">
+          <a href="#" class="text-gray-700 hover:text-pink-600 transition-colors">Explore</a>
+          <a href="#" class="text-gray-700 hover:text-pink-600 transition-colors">Experiences</a>
 
-    <main>
-        {% block content %}{% endblock %}
-    </main>
+          {% if user.is_authenticated %}
+            <a href="{% url 'ads:listing_create' %}" class="text-gray-700 hover:text-pink-600 transition-colors">Add listing</a>
+            <a href="{% url 'ads:my_listings' %}" class="text-gray-700 hover:text-pink-600 transition-colors">My listings</a>
+            <a href="{% url 'ads:my_bookings_host' %}" class="text-gray-700 hover:text-pink-600 transition-colors">Bookings (host)</a>
+          {% endif %}
+        </div>
 
-    {% block extra_scripts %}{% endblock %}
+        <!-- auth block -->
+        <div class="flex items-center space-x-4">
+          {% if user.is_authenticated %}
+            <span class="text-gray-700">Hi, {{ user.username|default:user.email }}</span>
+
+            <form action="{% url 'users:logout' %}" method="post" class="inline">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{% url 'home' %}">
+              <button type="submit" class="text-gray-700 hover:text-pink-600 transition-colors font-medium">
+                Log out
+              </button>
+            </form>
+          {% else %}
+            <a href="{% url 'users:login' %}?next={% url 'home' %}" class="text-gray-700 hover:text-pink-600 transition-colors font-medium">Sign In</a>
+            <a href="{% url 'users:register' %}" class="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 transition-colors">Sign Up</a>
+          {% endif %}
+
+          <a href="/admin/" class="text-sm text-gray-500 hover:text-gray-700 transition-colors">Admin</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- flash messages -->
+  {% if messages %}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+      <div class="space-y-2">
+        {% for m in messages %}
+          <div class="p-3 rounded
+                      {% if m.tags == 'success' %}bg-green-50 text-green-800 border border-green-200
+                      {% elif m.tags == 'error' %}bg-red-50 text-red-800 border border-red-200
+                      {% elif m.tags == 'warning' %}bg-yellow-50 text-yellow-800 border border-yellow-200
+                      {% else %}bg-gray-50 text-gray-800 border border-gray-200{% endif %}">
+            {{ m }}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% block hero %}{% endblock %}
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block extra_scripts %}{% endblock %}
 </body>
 </html>
