@@ -6,7 +6,7 @@ from .views import (
     ListingViewSet, BookingViewSet, ReviewViewSet,
     PopularListingView, SearchStatsView, ViewHistoryView,
     ListingDetailView, listing_create, booking_create, BookingSuccessView,
-    MyListingsView, MyBookingsHostView, booking_approve, booking_decline,
+    MyListingsView, MyBookingsHostView, booking_approve, booking_decline, MyBookingsGuestView
 )
 
 app_name = "ads"
@@ -33,6 +33,10 @@ urlpatterns = [
     path("popular-listings/", PopularListingView.as_view(), name="popular_listings"),
     path("search-stats/", SearchStatsView.as_view(), name="search_stats"),
     path("view-history/", ViewHistoryView.as_view(), name="view_history"),
+
+    #брони гостя в админке
+
+    path("my-bookings/", MyBookingsGuestView.as_view(), name="my_bookings_guest"),
 
     # DRF под /ads/api/
     path("api/", include(router.urls)),

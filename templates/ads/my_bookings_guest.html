@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}My bookings (guest) — StayFinder{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  <h1 class="text-3xl font-bold mb-6">My bookings (guest)</h1>
+
+  {% if not user.email %}
+    <div class="p-4 mb-6 rounded bg-yellow-50 text-yellow-800 border border-yellow-200">
+      Your profile has no email. Bookings are linked to email, so nothing will show here.
+    </div>
+  {% endif %}
+
+  {% if bookings %}
+    <div class="space-y-4">
+      {% for b in bookings %}
+        <div class="p-4 rounded border bg-white shadow-sm flex items-center justify-between">
+          <div>
+            <div class="font-semibold">{{ b.listing.title }}</div>
+            <div class="text-sm text-gray-600">
+              Даты:
+              {% if b.start_date %}{{ b.start_date|date:"d.m.Y" }}{% else %}—{% endif %}
+              →
+              {% if b.end_date %}{{ b.end_date|date:"d.m.Y" }}{% else %}—{% endif %}
+              • Статус: <span class="font-medium">{{ b.status }}</span>
+            </div>
+          </div>
+          <a href="{% url 'ads:listing_detail' slug=b.listing.slug %}"
+             class="text-pink-600 hover:text-pink-700">open</a>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-gray-600">У вас пока нет бронирований.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,4 +1,5 @@
 {% load static %}
+{% load roles %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -32,9 +33,13 @@
           <a href="#" class="text-gray-700 hover:text-pink-600 transition-colors">Experiences</a>
 
           {% if user.is_authenticated %}
-            <a href="{% url 'ads:listing_create' %}" class="text-gray-700 hover:text-pink-600 transition-colors">Add listing</a>
-            <a href="{% url 'ads:my_listings' %}" class="text-gray-700 hover:text-pink-600 transition-colors">My listings</a>
-            <a href="{% url 'ads:my_bookings_host' %}" class="text-gray-700 hover:text-pink-600 transition-colors">Bookings (host)</a>
+            {% if user|is_host %}
+              <a href="{% url 'ads:listing_create' %}" class="text-gray-700 hover:text-pink-600 transition-colors">Add listing</a>
+              <a href="{% url 'ads:my_listings' %}" class="text-gray-700 hover:text-pink-600 transition-colors">My listings</a>
+              <a href="{% url 'ads:my_bookings_host' %}" class="text-gray-700 hover:text-pink-600 transition-colors">Bookings (host)</a>
+            {% else %}
+              <a href="{% url 'ads:my_bookings_guest' %}" class="text-gray-700 hover:text-pink-600 transition-colors">Bookings (guest)</a>
+            {% endif %}
           {% endif %}
         </div>
 
@@ -42,7 +47,6 @@
         <div class="flex items-center space-x-4">
           {% if user.is_authenticated %}
             <span class="text-gray-700">Hi, {{ user.username|default:user.email }}</span>
-
             <form action="{% url 'users:logout' %}" method="post" class="inline">
               {% csrf_token %}
               <input type="hidden" name="next" value="{% url 'home' %}">

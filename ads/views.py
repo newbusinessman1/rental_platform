@@ -1,6 +1,7 @@
 # ads/views.py
 from functools import wraps
 
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
@@ -20,6 +21,7 @@ from rest_framework.views import APIView
 from .forms import ListingForm, BookingForm
 from .models import Listing, Booking, Review, ViewHistory
 from .serializers import ListingSerializer, BookingSerializer, ReviewSerializer
+
 
 
 # ========= Публичные страницы =========
@@ -246,6 +248,23 @@ class MyListingsView(ListView):
             .order_by("-created_at", "-id")
         )
 
+class MyBookingsGuestView(LoginRequiredMixin, ListView):
+    """Брони, которые создал текущий пользователь как гость."""
+    model = Booking
+    template_name = "ads/my_bookings_guest.html"
+    context_object_name = "bookings"
+
+    def get_queryset(self):
+        email = (self.request.user.email or "").strip()
+        if not email:
+            # если у пользователя нет email, нечего искать (в БД guest — это email)
+            return Booking.objects.none()
+        return (
+            Booking.objects
+            .select_related("listing")
+            .filter(guest__iexact=email)
+            .order_by("-created_at", "-id")
+        )
 
 class MyBookingsHostView(ListView):
     """Все брони по объявлениям текущего хоста."""

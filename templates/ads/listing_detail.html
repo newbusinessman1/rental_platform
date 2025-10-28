@@ -1,55 +1,83 @@
-{# templates/ads/listing_detail.html #}
 {% extends "base.html" %}
+
+{% block title %}{{ listing.title }} — StayFinder{% endblock %}
+
+{# подключим CSS flatpickr #}
+{% block extra_head %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+
 {% block content %}
 <div class="max-w-4xl mx-auto py-12">
-  <h1 class="text-4xl font-bold mb-4">{{ listing.title }}</h1>
+  <h1 class="text-4xl font-bold mb-2">{{ listing.title }}</h1>
 
   {% if listing.cover_image %}
     <img src="{{ listing.cover_image.url }}" alt="{{ listing.title }}" class="rounded-lg shadow mb-6">
   {% endif %}
 
-  <p class="text-gray-700 mb-4">{{ listing.description }}</p>
-  <p class="text-gray-600">📍 {{ listing.location }}</p>
-  <p class="text-gray-800 font-semibold mt-4">💰 {{ listing.price_per_night }} € / ночь</p>
+  <p class="text-gray-700 mb-3">{{ listing.description }}</p>
+  <p class="text-gray-600 flex items-center gap-2 mb-1">📍 {{ listing.location }}</p>
+  <p class="text-gray-800 font-semibold mb-8">💰 {{ listing.price_per_night }} € / ночь</p>
 
-  <hr class="my-8">
+  {# --- БРОНИРОВАНИЕ --- #}
+  {% if user.is_authenticated and user.email and listing.owner_email and user.email|lower == listing.owner_email|lower %}
+    <div class="p-4 border rounded bg-yellow-50 text-yellow-900">
+      Это ваше объявление. Бронировать его нельзя.
+    </div>
+  {% else %}
+    <h2 class="text-2xl font-semibold mb-4">Забронировать</h2>
 
-  {# ---- Бронирование ---- #}
-  {% with ue=user.email|default:''|lower oe=listing.owner_email|default:''|lower %}
-    {% if user.is_authenticated and ue == oe %}
-      <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded px-6 py-4">
-        Это ваше объявление. Бронирование недоступно.
-      </div>
-    {% elif user.is_authenticated %}
-      <h2 class="text-2xl font-semibold mb-4">Забронировать</h2>
+    {% if user.is_authenticated %}
       <form method="post" action="{% url 'ads:booking_create' slug=listing.slug %}" class="bg-white p-6 rounded-xl shadow space-y-4">
         {% csrf_token %}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label class="block text-sm text-gray-700 mb-1">Дата заезда</label>
+            <label class="block text-sm text-gray-700 mb-2">Дата заезда</label>
             {{ booking_form.check_in }}
             {% if booking_form.check_in.errors %}
-              <p class="text-red-600 text-sm mt-1">{{ booking_form.check_in.errors.0 }}</p>
+              <p class="text-sm text-red-600 mt-1">{{ booking_form.check_in.errors.0 }}</p>
             {% endif %}
           </div>
+
           <div>
-            <label class="block text-sm text-gray-700 mb-1">Дата выезда</label>
+            <label class="block text-sm text-gray-700 mb-2">Дата выезда</label>
             {{ booking_form.check_out }}
             {% if booking_form.check_out.errors %}
-              <p class="text-red-600 text-sm mt-1">{{ booking_form.check_out.errors.0 }}</p>
+              <p class="text-sm text-red-600 mt-1">{{ booking_form.check_out.errors.0 }}</p>
             {% endif %}
           </div>
         </div>
-        <button type="submit" class="bg-pink-600 text-white px-5 py-3 rounded-lg hover:bg-pink-700 transition">
+
+        <button type="submit"
+                class="bg-pink-600 text-white px-5 py-3 rounded-lg hover:bg-pink-700 transition">
           Забронировать
         </button>
       </form>
     {% else %}
-      <div class="bg-blue-50 border border-blue-200 text-blue-800 rounded px-6 py-4">
-        Чтобы забронировать, <a class="underline" href="{% url 'users:login' %}?next={{ request.path }}">войдите</a> или
-        <a class="underline" href="{% url 'users:register' %}">зарегистрируйтесь</a>.
+      <div class="bg-yellow-50 border border-yellow-200 text-yellow-900 p-4 rounded mb-4">
+        Чтобы бронировать, войдите в аккаунт.
       </div>
+      <a href="{% url 'users:login' %}?next={{ request.path }}"
+         class="inline-block bg-pink-600 text-white px-5 py-3 rounded-lg hover:bg-pink-700 transition">
+        Войти и забронировать
+      </a>
     {% endif %}
-  {% endwith %}
+  {% endif %}
 </div>
 {% endblock %}
+
+{# JS flatpickr + инициализация #}
+{% block extra_scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script>
+    // Настройки: минимально сегодня, красивый формат ввода/отображения
+    flatpickr(".datepicker", {
+      minDate: "today",
+      dateFormat: "Y-m-d",     // формат, который Django понимает как YYYY-MM-DD
+      altInput: true,
+      altFormat: "d.m.Y",      // красивый вид для пользователя
+    });
+  </script>
+{% endblock %}
+

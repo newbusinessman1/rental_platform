@@ -13,7 +13,14 @@ class ListingForm(forms.ModelForm):
             "price_per_night": forms.NumberInput(attrs={"class": "w-full p-3 border rounded-lg", "step": "0.01"}),
         }
 
+
+
 class BookingForm(forms.ModelForm):
     class Meta:
         model = Booking
-        fields = ["check_in", "check_out"]  # guest — это email, проставим во view
+        fields = ["check_in", "check_out"]
+        widgets = {
+            # ставим обычный текстовый инпут + класс для flatpickr
+            "check_in":  forms.TextInput(attrs={"class": "datepicker w-full border rounded px-3 py-2", "placeholder": "Выберите дату заезда"}),
+            "check_out": forms.TextInput(attrs={"class": "datepicker w-full border rounded px-3 py-2", "placeholder": "Выберите дату выезда"}),
+        }
