@@ -36,7 +36,7 @@ class HomeView(ListView):
     context_object_name = "listings"
 
     def get_queryset(self):
-        return (
+        qs = (
             Listing.objects
             .annotate(
                 reviews_count=Count("reviews"),
@@ -45,6 +45,11 @@ class HomeView(ListView):
             )
             .order_by("-id")
         )
+
+        query = self.request.GET.get("q")
+        if query:
+            qs = qs.filter(location__icontains=query)
+        return qs
 
 
 def register(request):
