@@ -76,6 +76,37 @@
     {% else %}
       <p class="text-gray-600">Пока нет объявлений.</p>
     {% endif %}
+    <hr class="my-12">
+  </div>
+</section>
+<section class="py-12">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <h2 class="text-3xl font-bold text-gray-900 mb-6">Popular stays (last 30 days)</h2>
+
+    {% if popular_listings %}
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {% for listing in popular_listings %}
+          <a href="{% url 'ads:listing_detail' slug=listing.slug %}"
+             class="bg-white rounded-2xl shadow-md overflow-hidden card-hover block">
+            <div class="h-40 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-6xl">
+              🏠
+            </div>
+            <div class="p-4">
+              <h3 class="font-semibold text-gray-900 mb-1">{{ listing.title }}</h3>
+              <p class="text-gray-600 text-sm mb-2">{{ listing.location|default:"—" }}</p>
+              <div class="flex items-center justify-between">
+                <span class="text-sm text-gray-600">👀 {{ listing.views_count }}</span>
+                <span class="font-bold text-gray-900">
+                  {% if listing.price_per_night %}€{{ listing.price_per_night }}{% else %}—{% endif %}
+                </span>
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-gray-600">No popular listings yet.</p>
+    {% endif %}
   </div>
 </section>
 {% endblock %}

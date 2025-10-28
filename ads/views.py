@@ -22,6 +22,7 @@ from .forms import ListingForm, BookingForm, ReviewForm
 from .models import Listing, Booking, Review, ViewHistory
 from .serializers import ListingSerializer, BookingSerializer, ReviewSerializer
 
+from datetime import timedelta
 
 
 
@@ -30,13 +31,16 @@ from .serializers import ListingSerializer, BookingSerializer, ReviewSerializer
 
 # ========= Публичные страницы =========
 
+
+
 class HomeView(ListView):
     model = Listing
     template_name = "home.html"
     context_object_name = "listings"
 
     def get_queryset(self):
-        qs = (
+        # обычная «лента»
+        return (
             Listing.objects
             .annotate(
                 reviews_count=Count("reviews"),
@@ -46,11 +50,19 @@ class HomeView(ListView):
             .order_by("-id")
         )
 
-        query = self.request.GET.get("q")
-        if query:
-            qs = qs.filter(location__icontains=query)
-        return qs
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
 
+        # Без фильтра по дате: считаем ВСЕ просмотры
+        popular = (
+                      Listing.objects
+                      .annotate(views_count=Count("views"))
+                      .order_by("-views_count", "-id")
+                  )[:8]
+
+        # Показываем только те, у кого есть просмотры
+        ctx["popular_listings"] = [l for l in popular if getattr(l, "views_count", 0) > 0]
+        return ctx
 
 def register(request):
     """Регистрация + авто-логин → главная."""
@@ -96,6 +108,19 @@ class ListingDetailView(DetailView):
         )
 
         ctx["booking_form"] = BookingForm()
+        return ctx
+
+        ctx["booked_dates"] = list(
+            Booking.objects.filter(
+                listing=listing,
+                status=Booking.STATUS_APPROVED
+            ).values_list("check_in", "check_out")
+        )
+
+        ctx["popular_listings"] = (
+            Listing.objects.annotate(views_count=Count("views"))
+            .order_by("-views_count")[:4]
+        )
         return ctx
 
 @login_required
