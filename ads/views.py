@@ -1,12 +1,18 @@
 # ads/views.py
+from functools import wraps
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login as auth_login
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Avg
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import ListView, DetailView, TemplateView
+
 from rest_framework import viewsets, permissions, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -58,6 +64,7 @@ class ListingDetailView(DetailView):
     def get(self, request, *args, **kwargs):
         resp = super().get(request, *args, **kwargs)
         listing = self.get_object()
+        # лог просмотра
         ViewHistory.objects.create(
             listing=listing,
             user=request.user if request.user.is_authenticated else None,
@@ -77,6 +84,12 @@ class ListingDetailView(DetailView):
 def booking_create(request, slug):
     """Создать бронь по объявлению."""
     listing = get_object_or_404(Listing, slug=slug)
+
+    # 🚫 запрет владельцу бронировать свой объект
+    if _is_owner(request.user, listing):
+        messages.error(request, "Вы не можете бронировать собственное объявление.")
+        return redirect("ads:listing_detail", slug=listing.slug)
+
     if request.method == "POST":
         form = BookingForm(request.POST)
         if form.is_valid():
@@ -176,6 +189,16 @@ class ViewHistoryView(generics.ListAPIView):
 
 # ========= Хост =========
 
+def is_host(user):
+    """
+    Кто считается «хостом».
+    Достаточно состоять в группе 'Host' ИЛИ быть staff/superuser.
+    """
+    return user.is_authenticated and (
+        user.groups.filter(name="Host").exists() or user.is_staff or user.is_superuser
+    )
+
+
 def _is_owner(user, listing):
     """Проверяем владение по owner_email (поле есть в БД)."""
     if not user.is_authenticated:
@@ -183,6 +206,22 @@ def _is_owner(user, listing):
     owner_email = (listing.owner_email or "").strip().lower()
     user_email = (user.email or "").strip().lower()
     return bool(owner_email and user_email and owner_email == user_email)
+
+
+def host_required(view_func):
+    """
+    Кастомный декоратор:
+    - если не залогинен → редирект на логин с next
+    - если залогинен, но не хост → 403 Forbidden (без странных редиректов)
+    """
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect(f"{reverse('users:login')}?next={request.get_full_path()}")
+        if not is_host(request.user):
+            raise PermissionDenied("Доступ разрешён только хостам.")
+        return view_func(request, *args, **kwargs)
+    return _wrapped
 
 
 class MyListingsView(ListView):
@@ -255,20 +294,20 @@ def booking_decline(request, pk):
     return redirect("ads:my_bookings_host")
 
 
-@login_required
+@host_required
 def listing_create(request):
-    """Создание объявления (любой авторизованный пользователь)."""
+    """Создание объявления — только для хостов."""
     if request.method == "POST":
         form = ListingForm(request.POST, request.FILES)
         if form.is_valid():
             listing = form.save(commit=False)
-            # Владелец по email
             if not listing.owner_email:
                 listing.owner_email = request.user.email or ""
             if not listing.created_at:
                 listing.created_at = timezone.now()
             listing.save()
-            return redirect("listing_detail", slug=listing.slug)
+            # правильный неймспейс
+            return redirect("ads:listing_detail", slug=listing.slug)
     else:
         initial = {}
         if request.user.is_authenticated and request.user.email:
