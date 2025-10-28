@@ -1,6 +1,7 @@
 # ads/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from .views import review_create
 
 from .views import (
     ListingViewSet, BookingViewSet, ReviewViewSet,
@@ -23,6 +24,7 @@ urlpatterns = [
     path("listing/<slug:slug>/", ListingDetailView.as_view(), name="listing_detail"),
     path("listing/<slug:slug>/book/", booking_create, name="booking_create"),
     path("listing/<slug:slug>/book/success/", BookingSuccessView.as_view(), name="booking_success"),
+    path("listing/<slug:slug>/review/", review_create, name="review_create"),
 
     path("my-listings/", MyListingsView.as_view(), name="my_listings"),
     path("host/bookings/", MyBookingsHostView.as_view(), name="my_bookings_host"),

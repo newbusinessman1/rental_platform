@@ -1,6 +1,6 @@
 # ads/forms.py
 from django import forms
-from .models import Listing, Booking
+from .models import Listing, Booking, Review
 
 class ListingForm(forms.ModelForm):
     class Meta:
@@ -24,3 +24,16 @@ class BookingForm(forms.ModelForm):
             "check_in":  forms.TextInput(attrs={"class": "datepicker w-full border rounded px-3 py-2", "placeholder": "Выберите дату заезда"}),
             "check_out": forms.TextInput(attrs={"class": "datepicker w-full border rounded px-3 py-2", "placeholder": "Выберите дату выезда"}),
         }
+
+class ReviewForm(forms.ModelForm):
+    RATING_CHOICES = [(i, str(i)) for i in range(1, 6)]
+
+    rating = forms.ChoiceField(choices=RATING_CHOICES, widget=forms.RadioSelect)
+    text = forms.CharField(
+        label="Ваш отзыв",
+        widget=forms.Textarea(attrs={"rows": 4, "placeholder": "Как прошла поездка?"})
+    )
+
+    class Meta:
+        model = Review
+        fields = ("rating", "text")

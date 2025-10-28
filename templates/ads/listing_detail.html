@@ -2,7 +2,6 @@
 
 {% block title %}{{ listing.title }} — StayFinder{% endblock %}
 
-{# подключим CSS flatpickr #}
 {% block extra_head %}
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 {% endblock %}
@@ -64,20 +63,88 @@
       </a>
     {% endif %}
   {% endif %}
+
+  <hr class="my-10">
+
+  <h2 class="text-2xl font-semibold mb-4">Отзывы</h2>
+
+  {% if reviews %}
+    <div class="space-y-4 mb-8">
+      {% for r in reviews %}
+        <div class="bg-white p-4 rounded shadow-sm border">
+          <div class="flex items-center justify-between">
+            <div class="font-medium">
+              {{ r.author.username|default:r.author.email|default:"Guest" }}
+            </div>
+            <div class="text-yellow-500">
+              {% for i in "12345" %}
+                <span class="{% if forloop.counter <= r.rating %}opacity-100{% else %}opacity-30{% endif %}">★</span>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="text-gray-700 mt-2 whitespace-pre-line">{{ r.text }}</div>
+          <div class="text-xs text-gray-500 mt-1">{{ r.created_at|date:"d.m.Y H:i" }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-gray-600 mb-8">Пока нет отзывов. Будьте первым!</p>
+  {% endif %}
+
+  {% if user.is_authenticated %}
+    {% if already_left_review %}
+      <div class="p-3 rounded bg-gray-50 border text-gray-600">
+        Вы уже оставляли отзыв по этому объявлению.
+      </div>
+    {% elif can_review %}
+      <form method="post" action="{% url 'ads:review_create' slug=listing.slug %}"
+            class="bg-white p-6 rounded shadow-sm border">
+        {% csrf_token %}
+        <h3 class="text-xl font-semibold mb-4">Оставить отзыв</h3>
+
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Оценка</label>
+          <div class="flex items-center space-x-3">
+            {% for i in "12345" %}
+              <label class="inline-flex items-center space-x-1">
+                <input type="radio" name="rating" value="{{ forloop.counter }}" required>
+                <span>{{ forloop.counter }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Комментарий</label>
+          <textarea name="text" rows="4" class="w-full border rounded px-3 py-2"
+                    placeholder="Как прошла поездка?" required></textarea>
+        </div>
+
+        <button type="submit" class="bg-pink-600 text-white px-4 py-2 rounded hover:bg-pink-700">
+          Отправить отзыв
+        </button>
+      </form>
+    {% else %}
+      <div class="p-3 rounded bg-yellow-50 border border-yellow-200 text-yellow-800">
+        Оставлять отзывы могут только гости с подтверждённой бронью после даты выезда.
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="p-3 rounded bg-blue-50 border border-blue-200 text-blue-800">
+      Пожалуйста, <a class="underline" href="{% url 'users:login' %}?next={{ request.path }}">войдите</a>, чтобы оставить отзыв.
+    </div>
+  {% endif %}
 </div>
 {% endblock %}
 
-{# JS flatpickr + инициализация #}
 {% block extra_scripts %}
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script>
-    // Настройки: минимально сегодня, красивый формат ввода/отображения
     flatpickr(".datepicker", {
       minDate: "today",
-      dateFormat: "Y-m-d",     // формат, который Django понимает как YYYY-MM-DD
+      dateFormat: "Y-m-d",
       altInput: true,
-      altFormat: "d.m.Y",      // красивый вид для пользователя
+      altFormat: "d.m.Y",
     });
   </script>
 {% endblock %}
-

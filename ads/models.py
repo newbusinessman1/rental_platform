@@ -79,16 +79,16 @@ class Review(models.Model):
     class Meta:
         db_table = "ads_review"
         ordering = ["-created_at"]
-        managed = False
+        managed = False  # важное: не мигрируем эту таблицу
 
-    listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name="reviews")
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="reviews")
-    rating = models.PositiveSmallIntegerField(default=5)
-    text = models.TextField(blank=True, db_column="comment")
-    created_at = models.DateTimeField(auto_now_add=True)
+    listing = models.ForeignKey("Listing", on_delete=models.CASCADE, related_name="reviews")
+    author_email = models.EmailField(max_length=254, db_column="user_email")
+    rating = models.PositiveSmallIntegerField()
+    text = models.TextField(db_column="comment")
+    created_at = models.DateTimeField()
 
     def __str__(self):
-        return f"Отзыв {self.rating}/5 для {self.listing} от {self.author}"
+        return f"{self.author_email} → {self.listing} ({self.rating})"
 
 
 # ---------- ViewHistory -> ads_viewhistory ----------

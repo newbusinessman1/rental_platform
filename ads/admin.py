@@ -175,8 +175,8 @@ class BookingAdmin(admin.ModelAdmin):
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
-    list_display = ("id", "listing", "author", "rating", "created_at")
-    search_fields = ("listing__title", "author__username")
+    list_display = ("id", "listing", "author_email", "rating", "created_at")
+    search_fields = ("listing__title", "author_username")
 
 @admin.register(ViewHistory)
 class ViewHistoryAdmin(admin.ModelAdmin):
