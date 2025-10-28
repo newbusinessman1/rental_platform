@@ -1,6 +1,6 @@
 # ads/views.py
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login as auth_login
 from django.db.models import Count, Avg
@@ -16,7 +16,7 @@ from .models import Listing, Booking, Review, ViewHistory
 from .serializers import ListingSerializer, BookingSerializer, ReviewSerializer
 
 
-# ====== ПУБЛИЧНЫЕ СТРАНИЦЫ ======
+# ========= Публичные страницы =========
 
 class HomeView(ListView):
     model = Listing
@@ -36,7 +36,7 @@ class HomeView(ListView):
 
 
 def register(request):
-    """Простая регистрация + авто-логин, после чего редирект на главную."""
+    """Регистрация + авто-логин → главная."""
     if request.method == "POST":
         form = UserCreationForm(request.POST)
         if form.is_valid():
@@ -58,7 +58,6 @@ class ListingDetailView(DetailView):
     def get(self, request, *args, **kwargs):
         resp = super().get(request, *args, **kwargs)
         listing = self.get_object()
-        # лог просмотра
         ViewHistory.objects.create(
             listing=listing,
             user=request.user if request.user.is_authenticated else None,
@@ -76,10 +75,7 @@ class ListingDetailView(DetailView):
 
 @login_required
 def booking_create(request, slug):
-    """
-    Бронирование конкретного объявления.
-    В БД колонка user_email (строка) → маппится на поле guest.
-    """
+    """Создать бронь по объявлению."""
     listing = get_object_or_404(Listing, slug=slug)
     if request.method == "POST":
         form = BookingForm(request.POST)
@@ -87,8 +83,7 @@ def booking_create(request, slug):
             booking = form.save(commit=False)
             booking.listing = listing
             booking.guest = request.user.email or ""
-            booking.created_at = timezone.now()   # БД требует NOT NULL
-            # статус по умолчанию
+            booking.created_at = timezone.now()
             booking.status = getattr(Booking, "STATUS_PENDING", "pending")
             booking.save()
             return redirect("ads:booking_success", slug=listing.slug)
@@ -108,7 +103,7 @@ class BookingSuccessView(TemplateView):
         return ctx
 
 
-# ====== API (как было) ======
+# ========= API =========
 
 class ListingViewSet(viewsets.ModelViewSet):
     serializer_class = ListingSerializer
@@ -179,25 +174,31 @@ class ViewHistoryView(generics.ListAPIView):
         return Response(data)
 
 
-# ====== БЛОК «ХОСТ» ======
+# ========= Хост =========
 
-def is_host(user):
-    return user.is_authenticated and (
-        user.groups.filter(name="Host").exists() or user.is_staff or user.is_superuser
-    )
+def _is_owner(user, listing):
+    """Проверяем владение по owner_email (поле есть в БД)."""
+    if not user.is_authenticated:
+        return False
+    owner_email = (listing.owner_email or "").strip().lower()
+    user_email = (user.email or "").strip().lower()
+    return bool(owner_email and user_email and owner_email == user_email)
 
 
 class MyListingsView(ListView):
-    """Список объявлений текущего хоста."""
+    """Список объявлений текущего пользователя (как хоста)."""
     model = Listing
     template_name = "ads/my_listings.html"
     context_object_name = "listings"
 
     def get_queryset(self):
-        email = self.request.user.email if self.request.user.is_authenticated else ""
+        user = self.request.user
+        if not user.is_authenticated:
+            return Listing.objects.none()
+        email = (user.email or "").strip()
         return (
             Listing.objects
-            .filter(owner_email=email)
+            .filter(owner_email__iexact=email)
             .annotate(
                 reviews_count=Count("reviews"),
                 avg_rating=Avg("reviews__rating"),
@@ -214,71 +215,54 @@ class MyBookingsHostView(ListView):
     context_object_name = "bookings"
 
     def get_queryset(self):
-        email = self.request.user.email if self.request.user.is_authenticated else ""
+        user = self.request.user
+        if not user.is_authenticated:
+            return Booking.objects.none()
+        email = (user.email or "").strip()
         return (
             Booking.objects
             .select_related("listing")
-            .filter(listing__owner_email=email)
-            .order_by("-created_at")
+            .filter(listing__owner_email__iexact=email)
+            .order_by("-created_at", "-id")
         )
 
 
 @login_required
-@user_passes_test(is_host)
 def booking_approve(request, pk):
-    """Подтвердить бронь."""
-    booking = (
-        Booking.objects
-        .select_related("listing")
-        .filter(pk=pk, listing__owner_email=request.user.email)
-        .first()
-    )
-    if not booking:
-        messages.error(request, "Бронь не найдена или вам не принадлежит.")
+    """Подтвердить бронь (только владелец объявления)."""
+    booking = get_object_or_404(Booking.objects.select_related("listing"), pk=pk)
+    if not _is_owner(request.user, booking.listing):
+        messages.error(request, "Нет прав: это не ваше объявление.")
         return redirect("ads:my_bookings_host")
-
-    new_status = getattr(Booking, "STATUS_APPROVED", "approved")
-    if booking.status != new_status:
-        booking.status = new_status
+    if request.method == "POST":
+        booking.status = getattr(Booking, "STATUS_APPROVED", "approved")
         booking.save(update_fields=["status"])
         messages.success(request, "Бронь подтверждена.")
-    else:
-        messages.info(request, "Бронь уже подтверждена.")
     return redirect("ads:my_bookings_host")
 
 
 @login_required
-@user_passes_test(is_host)
 def booking_decline(request, pk):
-    """Отклонить бронь."""
-    booking = (
-        Booking.objects
-        .select_related("listing")
-        .filter(pk=pk, listing__owner_email=request.user.email)
-        .first()
-    )
-    if not booking:
-        messages.error(request, "Бронь не найдена или вам не принадлежит.")
+    """Отклонить бронь (только владелец объявления)."""
+    booking = get_object_or_404(Booking.objects.select_related("listing"), pk=pk)
+    if not _is_owner(request.user, booking.listing):
+        messages.error(request, "Нет прав: это не ваше объявление.")
         return redirect("ads:my_bookings_host")
-
-    new_status = getattr(Booking, "STATUS_DECLINED", "declined")
-    if booking.status != new_status:
-        booking.status = new_status
+    if request.method == "POST":
+        booking.status = getattr(Booking, "STATUS_DECLINED", "declined")
         booking.save(update_fields=["status"])
         messages.success(request, "Бронь отклонена.")
-    else:
-        messages.info(request, "Бронь уже отклонена.")
     return redirect("ads:my_bookings_host")
 
 
 @login_required
-@user_passes_test(is_host)
 def listing_create(request):
-    """Создание объявления (только хосты)."""
+    """Создание объявления (любой авторизованный пользователь)."""
     if request.method == "POST":
         form = ListingForm(request.POST, request.FILES)
         if form.is_valid():
             listing = form.save(commit=False)
+            # Владелец по email
             if not listing.owner_email:
                 listing.owner_email = request.user.email or ""
             if not listing.created_at:

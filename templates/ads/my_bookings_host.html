@@ -1,45 +1,49 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="max-w-6xl mx-auto py-10">
+<div class="max-w-5xl mx-auto py-10">
   <h1 class="text-3xl font-bold mb-6">Брони по моим объявлениям</h1>
 
-  {% if messages %}
-    <div class="space-y-2 mb-6">
-      {% for m in messages %}
-        <div class="p-3 rounded {{ m.tags|default:'bg-gray-100' }}">
-          {{ m }}
-        </div>
-      {% endfor %}
-    </div>
-  {% endif %}
-
-  {% if bookings %}
-    <div class="space-y-4">
-      {% for b in bookings %}
-        <div class="bg-white border rounded-lg p-4 flex items-center justify-between">
-          <div>
-            <div class="text-lg font-semibold">{{ b.listing.title }}</div>
-            <div class="text-sm text-gray-600">
-              Гость: {{ b.user_email|default:"—" }} •
-              Даты: {{ b.start_date }} → {{ b.end_date }} •
-              Статус: <span class="font-medium">{{ b.status }}</span>
-            </div>
+  {% for b in bookings %}
+    <div class="bg-white rounded-lg shadow p-4 mb-4 border">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="font-semibold">{{ b.listing.title }}</div>
+          <div class="text-sm text-gray-600">
+            Гость: {{ b.user_email|default:"—" }} ·
+            Даты: {{ b.start_date|default:"—" }} → {{ b.end_date|default:"—" }} ·
+            Статус:
+            {% if b.status == "approved" %}
+              <span class="text-green-700 font-medium">approved</span>
+            {% elif b.status == "declined" %}
+              <span class="text-red-700 font-medium">declined</span>
+            {% else %}
+              <span class="text-yellow-700 font-medium">pending</span>
+            {% endif %}
           </div>
-          <div class="flex items-center gap-3">
+        </div>
+
+        {% if b.status == "pending" %}
+          <div class="flex gap-3">
             <form method="post" action="{% url 'ads:booking_approve' b.id %}">
               {% csrf_token %}
-              <button class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Подтвердить</button>
+              <button class="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700">
+                Подтвердить
+              </button>
             </form>
             <form method="post" action="{% url 'ads:booking_decline' b.id %}">
               {% csrf_token %}
-              <button class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Отклонить</button>
+              <button class="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700">
+                Отклонить
+              </button>
             </form>
           </div>
-        </div>
-      {% endfor %}
+        {% else %}
+          <div class="text-sm text-gray-500 italic">Действия недоступны</div>
+        {% endif %}
+      </div>
     </div>
-  {% else %}
-    <p class="text-gray-600">Пока нет заявок.</p>
-  {% endif %}
+  {% empty %}
+    <p class="text-gray-600">Пока нет броней.</p>
+  {% endfor %}
 </div>
 {% endblock %}
