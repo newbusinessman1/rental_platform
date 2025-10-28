@@ -1,13 +1,13 @@
 # ads/views.py
 from functools import wraps
-
+from datetime import datetime as _dt, timedelta as _td
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login as auth_login
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Avg, Q
+from django.db.models import Count, Avg, Q, Exists, OuterRef
 from django.http import HttpResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -22,7 +22,8 @@ from .forms import ListingForm, BookingForm, ReviewForm
 from .models import Listing, Booking, Review, ViewHistory
 from .serializers import ListingSerializer, BookingSerializer, ReviewSerializer
 
-from datetime import timedelta
+
+
 
 
 
@@ -32,15 +33,29 @@ from datetime import timedelta
 # ========= Публичные страницы =========
 
 
-
 class HomeView(ListView):
     model = Listing
     template_name = "home.html"
     context_object_name = "listings"
 
+    # --- утилита: аккуратно парсим дату из строки двух форматов ---
+    @staticmethod
+    def _parse_date(s: str):
+        if not s:
+            return None
+        for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
+            try:
+                return _dt.strptime(s, fmt).date()
+            except ValueError:
+                continue
+        return None
+
     def get_queryset(self):
-        # обычная «лента»
-        return (
+        q = (self.request.GET.get("q") or "").strip()
+        check_in  = self._parse_date(self.request.GET.get("check_in"))
+        check_out = self._parse_date(self.request.GET.get("check_out"))
+
+        qs = (
             Listing.objects
             .annotate(
                 reviews_count=Count("reviews"),
@@ -50,18 +65,65 @@ class HomeView(ListView):
             .order_by("-id")
         )
 
+        if q:
+            qs = qs.filter(
+                Q(title__icontains=q) |
+                Q(location__icontains=q) |
+                Q(description__icontains=q)
+            )
+
+        # простая фильтрация по доступности: исключаем листинги, у которых есть
+        # пересекающиеся бронирования (любого статуса, при желании можно
+        # оставить только approved)
+        if check_in and check_out and check_in <= check_out:
+            overlapping = Booking.objects.filter(
+                listing_id=OuterRef("pk"),
+            ).filter(
+                # пересечение интервалов: (start <= check_out) и (end >= check_in)
+                Q(check_in__lte=check_out, check_out__gte=check_in) |
+                Q(start_date__lte=check_out, end_date__gte=check_in)
+            )
+            qs = qs.annotate(has_overlap=Exists(overlapping)).filter(has_overlap=False)
+
+        return qs
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
 
-        # Без фильтра по дате: считаем ВСЕ просмотры
+        # последние 30 дней
+        since = timezone.now() - _td(days=30)
         popular = (
-                      Listing.objects
-                      .annotate(views_count=Count("views"))
-                      .order_by("-views_count", "-id")
-                  )[:8]
+            Listing.objects
+            .annotate(
+                # ВАЖНО: поле времени в модели ViewHistory называется created_at,
+                # а в БД оно mapped на viewed_at. Поэтому фильтруем по views__created_at.
+                views_last30=Count("views", filter=Q(views__created_at__gte=since))
+            )
+            .filter(views_last30__gt=0)
+            .order_by("-views_last30", "-id")[:8]
+        )
+        ctx["popular_listings"] = list(popular)
 
-        # Показываем только те, у кого есть просмотры
+        # чтобы форма поиска подставляла текущие значения
+        ctx["search"] = {
+            "q": (self.request.GET.get("q") or "").strip(),
+            "check_in": self._parse_date(self.request.GET.get("check_in")),
+            "check_out": self._parse_date(self.request.GET.get("check_out")),
+        }
+        return ctx
+
+    # --- ДОП. КОНТЕКСТ: «Популярные» по просмотрам (НЕ зависит от поиска/дат)
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+
+        popular = (
+            Listing.objects
+            .annotate(views_count=Count("views"))  # ViewHistory.related_name = 'views'
+            .order_by("-views_count", "-id")[:8]
+        )
+        # показываем только те, у кого есть просмотры
         ctx["popular_listings"] = [l for l in popular if getattr(l, "views_count", 0) > 0]
+
         return ctx
 
 def register(request):
