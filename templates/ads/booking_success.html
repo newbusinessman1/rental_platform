@@ -1,0 +1,50 @@
+{# templates/ads/booking_success.html #}
+{% extends "base.html" %}
+
+{% block content %}
+<section class="py-16">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white rounded-2xl shadow-xl p-8 md:p-12 text-center">
+      <div class="mx-auto w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-6">
+        <svg class="w-10 h-10" viewBox="0 0 24 24" fill="none">
+          <path d="M5 13l4 4L19 7" stroke="currentColor" class="text-green-600" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+
+      <h1 class="text-3xl font-bold text-gray-900 mb-3">Бронирование оформлено!</h1>
+      <p class="text-gray-600 mb-8">
+        Спасибо! Мы зафиксировали ваши даты. Подтверждение уже на почте.
+      </p>
+
+      {% if listing %}
+        <div class="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-8 text-left">
+          <p class="text-sm text-gray-500 mb-1">Объявление</p>
+          <h2 class="text-lg font-semibold text-gray-900">{{ listing.title }}</h2>
+          {% if listing.location %}
+            <p class="text-gray-600">📍 {{ listing.location }}</p>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <div class="flex flex-col sm:flex-row gap-3 justify-center">
+        {% if listing %}
+          <a href="{% url 'ads:listing_detail' slug=listing.slug %}"
+             class="px-6 py-3 rounded-lg bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 transition">
+            Вернуться к объявлению
+          </a>
+        {% endif %}
+
+        <a href="{% url 'home' %}"
+           class="px-6 py-3 rounded-lg bg-pink-600 text-white hover:bg-pink-700 transition">
+          На главную
+        </a>
+
+        <a href="{% url 'ads:my_listings' %}"
+           class="px-6 py-3 rounded-lg bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 transition">
+          Мои объявления
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

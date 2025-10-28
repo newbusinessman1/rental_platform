@@ -111,8 +111,13 @@ def booking_create(request, slug):
 class BookingSuccessView(TemplateView):
     template_name = "ads/booking_success.html"
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        slug = self.kwargs.get("slug")
+        if slug:
+            ctx["listing"] = get_object_or_404(Listing, slug=slug)
+        return ctx
 
-# удобный callable для urls
 booking_success = BookingSuccessView.as_view()
 
 
