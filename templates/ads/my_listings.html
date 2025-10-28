@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-6xl mx-auto py-10">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-3xl font-bold">My listings</h1>
+    <a href="{% url 'ads:listing_create' %}" class="bg-pink-600 text-white px-4 py-2 rounded-lg">+ New</a>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for obj in listings %}
+      <a href="{% url 'ads:listing_detail' slug=obj.slug %}" class="block bg-white rounded-2xl shadow card-hover p-5">
+        <div class="text-xl font-semibold">{{ obj.title }}</div>
+        <div class="text-gray-600">{{ obj.location }}</div>
+        <div class="mt-2">{{ obj.price_per_night }} €/night</div>
+      </a>
+    {% empty %}
+      <div class="text-gray-500">You have no listings yet.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

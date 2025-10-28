@@ -1,14 +1,13 @@
-# rental_platform/urls.py
 from django.contrib import admin
-from django.contrib.auth.views import LogoutView
 from django.urls import path, include
 from ads.views import HomeView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/", include("ads.urls")),
-    path("", HomeView.as_view(), name="home"),  # ← это главная страница
-    # Аутентификация: /register/ и /login/ берём из users/urls
-    path("", include("users.urls")),
-    path("logout/", LogoutView.as_view(next_page="home"), name="logout"),
+    path("", HomeView.as_view(), name="home"),                 # единственный 'home'
+    path("", include(("users.urls", "users"), namespace="users")),
+    path("ads/", include(("ads.urls", "ads"), namespace="ads")),
+
+    # если у тебя есть DRF-эндпоинты — держи их под /api/
+    path("api/", include("ads.urls")),   # если такого файла нет — просто убери эту строку
 ]

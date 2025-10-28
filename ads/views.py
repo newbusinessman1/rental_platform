@@ -1,15 +1,18 @@
 # ads/views.py
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import ListView, DetailView, TemplateView
 from django.db.models import Count, Avg
 from rest_framework import viewsets, permissions, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
-
 from .models import Listing, Booking, Review, ViewHistory
 from .serializers import ListingSerializer, BookingSerializer, ReviewSerializer
 from .forms import ListingForm, BookingForm
+from django.utils import timezone
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login as auth_login
+
 
 class HomeView(ListView):
     model = Listing
@@ -27,6 +30,19 @@ class HomeView(ListView):
             .order_by("-id")  # если вернёшь поле в модель: .order_by("-created_at")
         )
         return qs
+
+
+def register(request):
+    """Простая регистрация + авто-логин, потом редирект на главную."""
+    if request.method == "POST":
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            auth_login(request, user)
+            return redirect("home")
+    else:
+        form = UserCreationForm()
+    return render(request, "accounts/register.html", {"form": form})
 
 
 class ListingDetailView(DetailView):
@@ -62,6 +78,9 @@ def listing_create(request):
         if form.is_valid():
             listing = form.save(commit=False)
             listing.host = request.user
+            listing.owner_email = getattr(request.user, "email", "") or ""
+            if not listing.created_at:
+                listing.created_at = timezone.now()
             listing.save()
             return redirect("listing_detail", slug=listing.slug)
     else:
@@ -95,6 +114,7 @@ booking_success = BookingSuccessView.as_view()
 
 
 # ===== API (как было) =====
+
 
 class ListingViewSet(viewsets.ModelViewSet):
     serializer_class = ListingSerializer
@@ -155,3 +175,46 @@ class ViewHistoryView(generics.ListAPIView):
             "when": vh.created_at,
         } for vh in self.get_queryset()[:200]]
         return Response(data)
+
+def is_host(user):
+    return user.is_authenticated and (user.groups.filter(name="Host").exists() or user.is_staff or user.is_superuser)
+
+class MyListingsView(ListView):
+    model = Listing
+    template_name = "ads/my_listings.html"
+    context_object_name = "listings"
+
+    def get_queryset(self):
+        email = self.request.user.email if self.request.user.is_authenticated else ""
+        return (Listing.objects
+                .filter(owner_email=email)
+                .annotate(
+                    reviews_count=Count("reviews"),
+                    avg_rating=Avg("reviews__rating"),
+                    views_count=Count("views"),
+                )
+                .order_by("-created_at", "-id"))
+
+
+@login_required
+@user_passes_test(is_host)
+def listing_create(request):
+    if request.method == "POST":
+        form = ListingForm(request.POST, request.FILES)
+        if form.is_valid():
+            listing = form.save(commit=False)
+            # заполняем поля, которых нет в форме, но обязательны в БД:
+            if not listing.owner_email:
+                listing.owner_email = request.user.email or ""
+            if not listing.created_at:
+                listing.created_at = timezone.now()
+
+            # slug сгенерится в models.save(), если пустой
+            listing.save()
+            return redirect("listing_detail", slug=listing.slug)
+    else:
+        initial = {}
+        if request.user.is_authenticated and request.user.email:
+            initial["owner_email"] = request.user.email
+        form = ListingForm(initial=initial)
+    return render(request, "ads/listing_form.html", {"form": form})

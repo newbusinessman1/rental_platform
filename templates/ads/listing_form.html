@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto px-4 py-10">
+  <h1 class="text-3xl font-bold mb-6">Add a new listing</h1>
+
+  <form method="post" class="bg-white p-6 rounded-2xl shadow">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="mb-4 text-red-600">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="mb-4">
+      <label class="block text-sm font-medium mb-1">Title</label>
+      {{ form.title }}
+      {{ form.title.errors }}
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm font-medium mb-1">Description</label>
+      {{ form.description }}
+      {{ form.description.errors }}
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm font-medium mb-1">Location (city)</label>
+      {{ form.location }}
+      {{ form.location.errors }}
+    </div>
+
+    <div class="mb-6">
+      <label class="block text-sm font-medium mb-1">Price per night</label>
+      {{ form.price_per_night }}
+      {{ form.price_per_night.errors }}
+    </div>
+
+    <div class="flex gap-3">
+      <button type="submit" class="bg-pink-600 text-white px-5 py-2 rounded-lg hover:bg-pink-700">
+        Save listing
+      </button>
+      <a href="{% url 'home' %}" class="px-5 py-2 rounded-lg border">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

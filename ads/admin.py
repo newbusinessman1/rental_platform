@@ -8,7 +8,6 @@ from django.db.models import Count, Avg
 from rest_framework import viewsets, permissions, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
-
 from .models import Listing, Booking, Review, ViewHistory
 from .serializers import ListingSerializer, BookingSerializer, ReviewSerializer
 from .forms import ListingForm, BookingForm
@@ -161,24 +160,25 @@ class ViewHistoryView(generics.ListAPIView):
         return Response(data)
 
 
+
+
 @admin.register(Listing)
 class ListingAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'slug', 'location', 'price_per_night')
-    search_fields = ('title', 'location', 'slug')
-    prepopulated_fields = {'slug': ('title',)}  # ок, даже если у нас slug nullable
+    list_display = ("id", "title", "slug", "location", "price_per_night", "owner_email", "created_at")
+    search_fields = ("title", "location", "owner_email", "slug")
+    list_filter = ("location",)
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ('id', 'listing', 'guest', 'check_in', 'check_out', 'status', 'created_at')
-    list_filter = ('status',)
-    search_fields = ('guest', 'listing__title')
+    list_display = ("id", "listing", "guest", "check_in", "check_out", "status", "created_at")
+    search_fields = ("guest", "listing__title")
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
-    list_display = ('id', 'listing', 'author', 'rating', 'created_at')
-    list_filter = ('rating',)
+    list_display = ("id", "listing", "author", "rating", "created_at")
+    search_fields = ("listing__title", "author__username")
 
 @admin.register(ViewHistory)
 class ViewHistoryAdmin(admin.ModelAdmin):
-    list_display = ('id', 'listing', 'user', 'ip_address', 'created_at')
-    search_fields = ('ip_address', 'user_agent', 'listing__title')
+    list_display = ("id", "listing", "user", "created_at", "ip_address")
+    search_fields = ("listing__title", "user__username", "ip_address")

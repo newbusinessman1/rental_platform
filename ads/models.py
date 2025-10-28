@@ -26,6 +26,10 @@ class Listing(models.Model):
     # Эта колонка у тебя есть в БД (см. скрин) — добавляем в модель
     created_at = models.DateTimeField(blank=True, null=True, db_column="created_at")
 
+    owner_email = models.EmailField(db_column="owner_email", blank=True, default="")
+
+    created_at = models.DateTimeField(db_column="created_at")
+
     def save(self, *args, **kwargs):
         # автослаг только если пусто
         if not self.slug:

@@ -12,7 +12,7 @@
       <div class="text-2xl font-bold text-pink-600">🏠 StayFinder</div>
       <div class="space-x-4">
         <a href="{% url 'home' %}" class="text-gray-700 hover:text-pink-600">Главная</a>
-        <a href="{% url 'login' %}" class="text-gray-700 hover:text-pink-600">Войти</a>
+        <a href="{% url 'users:login' %}" class="text-gray-700 hover:text-pink-600">Войти</a>
       </div>
     </div>
   </nav>
@@ -32,7 +32,7 @@
         </div>
       {% endif %}
 
-      <form method="post" action="{% url 'register' %}" class="space-y-6" novalidate>
+      <form method="post" action="{% url 'users:register' %}" class="space-y-6" novalidate>
         {% csrf_token %}
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -142,7 +142,7 @@
 
       <p class="text-center text-gray-600 mt-4">
         Уже есть аккаунт?
-        <a href="{% url 'login' %}" class="text-pink-600 hover:text-pink-700 font-medium">Войти</a>
+        <a href="{% url 'users:login' %}" class="text-pink-600 hover:text-pink-700 font-medium">Войти</a>
       </p>
     </div>
   </main>

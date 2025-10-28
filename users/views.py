@@ -39,3 +39,4 @@ class RegisterView(View):
 
         # если форма с ошибками — показать их
         return render(request, self.template_name, {"form": form})
+
