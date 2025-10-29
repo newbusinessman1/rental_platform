@@ -10,12 +10,11 @@ class ListingForm(forms.ModelForm):
 class BookingForm(forms.ModelForm):
     class Meta:
         model = Booking
-        fields = ["check_in", "check_out"]  # у тебя они маппятся на start_date/end_date
+        fields = ["check_in", "check_out"]
 
 class ReviewForm(forms.ModelForm):
     class Meta:
         model = Review
-        # ВАЖНО: именно 'rating' и 'comment' — как в модели
         fields = ["rating", "comment"]
         widgets = {
             "rating": forms.RadioSelect(choices=[(i, str(i)) for i in range(1, 5)]),

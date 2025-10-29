@@ -27,14 +27,12 @@ class RegisterForm(UserCreationForm):
             "role",
         )
 
-    # аккуратное сообщение, если логин занят
     def clean_username(self):
         username = self.cleaned_data["username"]
         if User.objects.filter(username=username).exists():
             raise forms.ValidationError("Пользователь с таким логином уже существует. Придумайте другой 🙂")
         return username
 
-    # по желанию — уникальный email (можно убрать, если не нужно)
     def clean_email(self):
         email = self.cleaned_data["email"]
         if User.objects.filter(email=email).exists():

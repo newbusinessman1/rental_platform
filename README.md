@@ -1,57 +1,30 @@
-# Rental Platform (Final Project)
+# 🏠 StayFinder — Rental Booking Platform (Django + DRF)
 
-Бэкенд на Django + DRF: объявления, поиск/фильтры, JWT, бронирования, отзывы, популярные и статистика.
-
-## Quick start (local)
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py loaddata fixtures/seed.json   # опционально
-python manage.py runserver
-
-
-JWT
-
-POST /api/token/ → {username, password}
-
-POST /api/token/refresh/
-Header: Authorization: Bearer <access>
-
-Endpoints
-
-GET/POST /api/listings/ (filters: location, price, rooms, housing_type, is_active; search: title, description; ordering: price, created_at)
-
-GET /api/listings/{id}/ (инкремент views)
-
-GET/POST /api/bookings/ (JWT)
-
-GET/POST /api/reviews/ (JWT)
-
-GET /api/popular-listings/
-
-GET /api/search-stats/
-
-Docker
-docker compose up --build
-
+**StayFinder** — это полнофункциональная платформа аренды жилья, где пользователи могут бронировать объявления, оставлять отзывы после завершения проживания, а хосты управляют своими объектами.
 
 ---
 
-# 6) Быстрые команды для запуска
+## 🚀 Текущее состояние проекта
 
-```bash
-# 1) Установить зависимости и окружение
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
+✅ **Полностью рабочая версия**:
+- Бэкенд (Django + Django REST Framework)
+- API-документация через **Swagger UI**
+- Админ-панель Django
+- HTML-интерфейс для гостей и хостов (на Django Templates)
+- Автоматическое завершение броней (`finished`) после даты выезда  
+- Возможность оставлять **отзывы** только после подтверждённого проживания (`approved` или `finished`)
+- Подсчёт просмотров и рейтингов, фильтрация по датам
 
-# 2) Миграции + суперюзер + демо-данные
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py loaddata fixtures/seed.json   # опционально
+Все модули проверены и функционируют корректно:
+- ✅ REST API — **работает через Swagger**
+- ✅ Авторизация, регистрация и логин пользователей
+- ✅ Создание объявлений (листингов)
+- ✅ Бронирования и управление статусами (pending / approved / declined / finished)
+- ✅ Система отзывов (rating + comment)
+- ✅ Отображение статистики и истории просмотров
 
-# 3) Старт
-python manage.py runserver
+---
+
+## 📚 Документация API
+
+Полная документация доступна по адресу:

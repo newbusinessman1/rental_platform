@@ -73,7 +73,6 @@ class ReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Review
-        # поле комментария добавим динамически в __init__
         fields = [
             "id", "listing", "listing_title",
             "author_email", "rating", "created_at",
