@@ -1,69 +1,132 @@
+# ads/views.py
 from functools import wraps
 from datetime import datetime as _dt, timedelta as _td
-from .utils import auto_finish_bookings
-from django.contrib.auth.mixins import LoginRequiredMixin
+
 from django.contrib import messages
+from django.contrib.auth import login as auth_login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login as auth_login
-from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Avg, Q, Exists, OuterRef
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import FieldDoesNotExist, PermissionDenied
+from django.db.models import Avg, Count, Exists, OuterRef, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.generic import ListView, DetailView, TemplateView
+from django.views.generic import DetailView, ListView, TemplateView
 
 # DRF
-from rest_framework import viewsets, permissions, generics, decorators, response
+from rest_framework import decorators, generics, permissions, response, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.core.exceptions import FieldDoesNotExist
-from .forms import ListingForm, BookingForm, ReviewForm
-from .models import Listing, Booking, Review, ViewHistory
-from .serializers import ListingSerializer, BookingSerializer, ReviewSerializer
+
+from .forms import BookingForm, ListingForm, ReviewForm
+from .models import Booking, Listing, Review, ViewHistory
 from .permissions import (
     IsAuthenticatedOrReadOnly,
-    IsListingOwnerOrReadOnly,
     IsHostOfBooking,
+    IsListingOwnerOrReadOnly,
 )
+from .serializers import BookingSerializer, ListingSerializer, ReviewSerializer
+from .utils import auto_finish_bookings
+
+
+# ------------ утилиты ------------
+
+def _has_field(model, name: str) -> bool:
+    try:
+        model._meta.get_field(name)
+        return True
+    except FieldDoesNotExist:
+        return False
+
+
+def is_host(user):
+    """Хост — в группе 'Host' или staff/superuser."""
+    return user.is_authenticated and (
+        user.groups.filter(name="Host").exists() or user.is_staff or user.is_superuser
+    )
+
+
+def _is_owner(user, listing):
+    """Сверка owner_email и user.email."""
+    if not user.is_authenticated:
+        return False
+    owner_email = (listing.owner_email or "").strip().lower()
+    user_email = (user.email or "").strip().lower()
+    return bool(owner_email and user_email and owner_email == user_email)
+
+
+def host_required(view_func):
+    """Декоратор: не залогинен — редирект на логин; не хост — 403."""
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect(f"{reverse('users:login')}?next={request.get_full_path()}")
+        if not is_host(request.user):
+            raise PermissionDenied("Доступ разрешён только хостам.")
+        return view_func(request, *args, **kwargs)
+    return _wrapped
+
+
+def _booking_is_past_and_approved_for_user(listing, user) -> bool:
+    """
+    Разрешаем отзыв, если у пользователя есть бронь по этому листингу,
+    дата выезда уже наступила (<= сегодня), и статус либо approved, либо finished.
+    Работает и с моделями, где поля дат называются check_in/check_out или start_date/end_date.
+    """
+    if not (getattr(user, "is_authenticated", False) and getattr(user, "email", "")):
+        return False
+
+    today = timezone.localdate()
+    status_approved = getattr(Booking, "STATUS_APPROVED", "approved")
+    status_finished = getattr(Booking, "STATUS_FINISHED", "finished")
+
+    qs = Booking.objects.filter(
+        listing=listing,
+        guest__iexact=user.email,
+        status__in=[status_approved, status_finished],
+    )
+
+    if hasattr(Booking, "check_out"):
+        return qs.filter(check_out__lte=today).exists()
+    elif hasattr(Booking, "end_date"):
+        return qs.filter(end_date__lte=today).exists()
+    return False
+
+
+def _same_email(a: str, b: str) -> bool:
+    return (a or "").strip().lower() == (b or "").strip().lower()
 
 
 # ========= Публичные страницы =========
-
 
 class HomeView(ListView):
     model = Listing
     template_name = "home.html"
     context_object_name = "listings"
 
+    # аккуратно парсим дату из строки двух форматов
     @staticmethod
     def _parse_date(s: str):
-        from datetime import datetime
         if not s:
             return None
         for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
             try:
-                return datetime.strptime(s, fmt).date()
+                return _dt.strptime(s, fmt).date()
             except ValueError:
-                pass
+                continue
         return None
 
-
-
-    def _has_field(model, name: str) -> bool:
-        try:
-            model._meta.get_field(name)
-            return True
-        except FieldDoesNotExist:
-            return False
-
     def get_queryset(self):
-        from django.db.models import Count, Avg, Q, Exists, OuterRef
+        # при каждом заходе на главную завершаем просроченные approved → finished
+        try:
+            auto_finish_bookings()
+        except Exception:
+            # не валим страницу, если что-то не так с БД/соединением
+            pass
 
         q = (self.request.GET.get("q") or "").strip()
-
-        # даты из строки → date
         check_in = self._parse_date(self.request.GET.get("check_in"))
         check_out = self._parse_date(self.request.GET.get("check_out"))
 
@@ -84,15 +147,14 @@ class HomeView(ListView):
                 Q(description__icontains=q)
             )
 
-        # фильтрация по доступности: строим условие только по тем полям, которые реально есть
+        # фильтрация по доступности — подстраиваемся под имена полей в Booking
         if check_in and check_out and check_in <= check_out:
-            # определяем имена полей периода в Booking
             if _has_field(Booking, "check_in") and _has_field(Booking, "check_out"):
                 start_f, end_f = "check_in", "check_out"
             elif _has_field(Booking, "start_date") and _has_field(Booking, "end_date"):
                 start_f, end_f = "start_date", "end_date"
             else:
-                start_f = end_f = None  # на всякий случай, если схема «нестандартная»
+                start_f = end_f = None
 
             if start_f and end_f:
                 overlapping = (
@@ -105,16 +167,13 @@ class HomeView(ListView):
         return qs
 
     def get_context_data(self, **kwargs):
-        from django.db.models import Count, Q
-        from datetime import timedelta
         ctx = super().get_context_data(**kwargs)
 
-        # популярные по просмотрам за последние 30 дней
-        since = timezone.now() - timedelta(days=30)
+        since = timezone.now() - _td(days=30)
         popular = (
             Listing.objects
             .annotate(
-                views_count=Count("views"),  # чтобы поле было и тут
+                views_count=Count("views"),
                 views_last30=Count("views", filter=Q(views__created_at__gte=since)),
             )
             .filter(views_last30__gt=0)
@@ -128,6 +187,7 @@ class HomeView(ListView):
             "check_out": self._parse_date(self.request.GET.get("check_out")),
         }
         return ctx
+
 
 def register(request):
     """Регистрация + авто-логин → главная."""
@@ -156,6 +216,12 @@ class ListingDetailView(DetailView):
         return get_object_or_404(Listing, slug=slug_or_id)
 
     def get(self, request, *args, **kwargs):
+        # тоже аккуратно дофинишиваем просроченные
+        try:
+            auto_finish_bookings()
+        except Exception:
+            pass
+
         resp = super().get(request, *args, **kwargs)
         listing = self.object
         ViewHistory.objects.create(
@@ -173,10 +239,13 @@ class ListingDetailView(DetailView):
         ctx["reviews"] = (
             Review.objects
             .filter(listing=listing)
-            # в твоей БД: user_email + comment + rating + created_at
             .only("user_email", "comment", "rating", "created_at")
             .order_by("-id")
         )
+
+        # флаг — можно ли показывать форму отзыва
+        ctx["can_review"] = _booking_is_past_and_approved_for_user(listing, self.request.user)
+        ctx["review_form"] = ReviewForm() if ctx["can_review"] else None
 
         ctx["booking_form"] = BookingForm()
         return ctx
@@ -188,8 +257,8 @@ def review_create(request, slug):
     Создать отзыв по листингу.
     Правила:
       - авторизован
-      - есть approved бронь с прошедшей датой выезда
-      - не оставлял отзыв ранее по этому листингу
+      - есть approved/finished бронь с прошедшей датой выезда
+      - ещё не оставлял отзыв по этому листингу
     """
     listing = get_object_or_404(Listing, slug=slug)
 
@@ -197,7 +266,8 @@ def review_create(request, slug):
         messages.error(request, "Оставлять отзывы можно только после подтверждённого проживания.")
         return redirect("ads:listing_detail", slug=listing.slug)
 
-    if Review.objects.filter(listing=listing, author_email=(request.user.email or "")).exists():
+    # в БД автор хранится как email в поле user_email
+    if Review.objects.filter(listing=listing, user_email=(request.user.email or "")).exists():
         messages.info(request, "Вы уже оставляли отзыв для этого объявления.")
         return redirect("ads:listing_detail", slug=listing.slug)
 
@@ -206,8 +276,11 @@ def review_create(request, slug):
         if form.is_valid():
             review = form.save(commit=False)
             review.listing = listing
-            # в БД хранится email автора
-            review.author_email = request.user.email or ""
+            review.user_email = request.user.email or ""
+            # <<< ключевая строка: проставляем created_at явно >>>
+            if not getattr(review, "created_at", None):
+                from django.utils import timezone
+                review.created_at = timezone.now()
             review.save()
             messages.success(request, "Спасибо! Ваш отзыв сохранён.")
             return redirect("ads:listing_detail", slug=listing.slug)
@@ -217,10 +290,9 @@ def review_create(request, slug):
 
 @login_required
 def booking_create(request, slug):
-    """Создать бронь по объявлению."""
+    """Создать бронь по объявлению (HTML)."""
     listing = get_object_or_404(Listing, slug=slug)
 
-    # запрет владельцу бронировать свой объект
     if _is_owner(request.user, listing):
         messages.error(request, "Вы не можете бронировать собственное объявление.")
         return redirect("ads:listing_detail", slug=listing.slug)
@@ -258,8 +330,6 @@ class ListingViewSet(viewsets.ModelViewSet):
     serializer_class = ListingSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, IsListingOwnerOrReadOnly]
 
-    # (опционально) можно переопределить perform_create/perform_update,
-    # если хочешь автоматически проставлять owner_email = request.user.email
     def perform_create(self, serializer):
         owner_email = (getattr(self.request.user, "email", "") or "")
         serializer.save(owner_email=owner_email or serializer.validated_data.get("owner_email", ""))
@@ -300,7 +370,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def perform_create(self, serializer):
-        serializer.save(author_email=(getattr(self.request.user, "email", "") or ""))
+        serializer.save(user_email=(getattr(self.request.user, "email", "") or ""))
 
 
 class PopularListingView(APIView):
@@ -340,50 +410,8 @@ class ViewHistoryView(generics.ListAPIView):
         } for vh in self.get_queryset()[:200]]
         return Response(data)
 
-# ========= Хост =========
 
-def is_host(user):
-    """Хост — в группе 'Host' или staff/superuser."""
-    return user.is_authenticated and (
-        user.groups.filter(name="Host").exists() or user.is_staff or user.is_superuser
-    )
-
-def _is_owner(user, listing):
-    """Сверка owner_email и user.email."""
-    if not user.is_authenticated:
-        return False
-    owner_email = (listing.owner_email or "").strip().lower()
-    user_email = (user.email or "").strip().lower()
-    return bool(owner_email and user_email and owner_email == user_email)
-
-def host_required(view_func):
-    """Декоратор: не хост — 403; не залогинен — редирект на логин с next."""
-    @wraps(view_func)
-    def _wrapped(request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return redirect(f"{reverse('users:login')}?next={request.get_full_path()}")
-        if not is_host(request.user):
-            raise PermissionDenied("Доступ разрешён только хостам.")
-        return view_func(request, *args, **kwargs)
-    return _wrapped
-
-def _booking_is_past_and_approved_for_user(listing, user) -> bool:
-    """Есть ли у пользователя approved-бронь по листингу с прошедшей датой выезда."""
-    if not user.is_authenticated or not user.email:
-        return False
-    today = timezone.now().date()
-    qs = Booking.objects.filter(
-        listing=listing,
-        guest__iexact=user.email,
-        status=getattr(Booking, "STATUS_APPROVED", "approved"),
-    )
-    if hasattr(Booking, "end_date"):
-        qs = qs.filter(end_date__lte=today)
-    elif hasattr(Booking, "check_out"):
-        qs = qs.filter(check_out__lte=today)
-    else:
-        return False
-    return qs.exists()
+# ========= Кабинеты / таблицы =========
 
 class MyListingsView(ListView):
     """Список объявлений текущего пользователя (как хоста)."""
@@ -407,6 +435,7 @@ class MyListingsView(ListView):
             .order_by("-created_at", "-id")
         )
 
+
 class MyBookingsGuestView(LoginRequiredMixin, ListView):
     """Брони, которые создал текущий пользователь как гость."""
     model = Booking
@@ -423,6 +452,7 @@ class MyBookingsGuestView(LoginRequiredMixin, ListView):
             .filter(guest__iexact=email)
             .order_by("-created_at", "-id")
         )
+
 
 class MyBookingsHostView(ListView):
     """Все брони по объявлениям текущего хоста."""
@@ -442,8 +472,6 @@ class MyBookingsHostView(ListView):
             .order_by("-created_at", "-id")
         )
 
-def _same_email(a: str, b: str) -> bool:
-    return (a or "").strip().lower() == (b or "").strip().lower()
 
 @login_required
 def booking_detail(request, pk: int):
@@ -459,6 +487,7 @@ def booking_detail(request, pk: int):
         raise Http404("Booking not found")
     return render(request, "ads/booking_detail.html", {"booking": booking})
 
+
 @login_required
 def booking_approve(request, pk):
     """Подтвердить бронь (HTML-версия, только владелец)."""
@@ -472,6 +501,7 @@ def booking_approve(request, pk):
         messages.success(request, "Бронь подтверждена.")
     return redirect("ads:my_bookings_host")
 
+
 @login_required
 def booking_decline(request, pk):
     """Отклонить бронь (HTML-версия, только владелец)."""
@@ -484,6 +514,7 @@ def booking_decline(request, pk):
         booking.save(update_fields=["status"])
         messages.success(request, "Бронь отклонена.")
     return redirect("ads:my_bookings_host")
+
 
 @host_required
 def listing_create(request):

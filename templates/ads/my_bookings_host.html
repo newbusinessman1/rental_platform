@@ -10,7 +10,9 @@
           <div class="font-semibold">{{ b.listing.title }}</div>
           <div class="text-sm text-gray-600">
             Гость: {{ b.user_email|default:"—" }} ·
-            Даты: {{ b.start_date|default:"—" }} → {{ b.end_date|default:"—" }} ·
+            Даты: {% if b.check_in %}{{ b.check_in|date:"d.m.Y" }}{% else %}—{% endif %}
+              →
+              {% if b.check_out %}{{ b.check_out|date:"d.m.Y" }}{% else %}—{% endif %}
             Статус:
             {% if b.status == "approved" %}
               <span class="text-green-700 font-medium">approved</span>
