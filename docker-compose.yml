@@ -1,12 +1,14 @@
+# docker-compose.yml
 services:
   db:
-    image: mariadb:10.11
+    image: mysql:8.0
     container_name: stayfinder_db
+    restart: unless-stopped
     environment:
       MYSQL_DATABASE: ${MYSQL_NAME}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_ROOT_PASSWORD: root
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
@@ -14,25 +16,19 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   web:
     build: .
     container_name: stayfinder_web
-    command: python manage.py runserver 0.0.0.0:8000
-    volumes:
-      - .:/app
-    ports:
-      - "8000:8000"
+    restart: unless-stopped
     env_file:
       - .env
+    ports:
+      - "8000:8000"
     depends_on:
-      db:
-        condition: service_healthy
+      - db
+    volumes:
+      - .:/app
 
 volumes:
   mysql_data:
