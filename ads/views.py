@@ -126,10 +126,15 @@ class ListingDetailView(DetailView):
     slug_field = "slug"
     slug_url_kwarg = "slug"
 
+    def get_object(self, queryset=None):
+        slug_or_id = self.kwargs.get(self.slug_url_kwarg)
+        if isinstance(slug_or_id, str) and slug_or_id.isdigit():
+            return get_object_or_404(Listing, pk=int(slug_or_id))
+        return get_object_or_404(Listing, slug=slug_or_id)
+
     def get(self, request, *args, **kwargs):
         resp = super().get(request, *args, **kwargs)
-        listing = self.get_object()
-        # лог просмотра
+        listing = self.object
         ViewHistory.objects.create(
             listing=listing,
             user=request.user if request.user.is_authenticated else None,
@@ -142,11 +147,11 @@ class ListingDetailView(DetailView):
         ctx = super().get_context_data(**kwargs)
         listing = self.object
 
-        # ВАЖНО: в БД нет author_id — берём поля, которые есть
         ctx["reviews"] = (
             Review.objects
             .filter(listing=listing)
-            .only("rating", "text", "created_at", "author_email")
+            # в твоей БД: user_email + comment + rating + created_at
+            .only("user_email", "comment", "rating", "created_at")
             .order_by("-id")
         )
 

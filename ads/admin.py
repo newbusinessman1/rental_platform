@@ -61,7 +61,7 @@ def listing_create(request):
         form = ListingForm(request.POST, request.FILES)
         if form.is_valid():
             listing = form.save(commit=False)
-            # host убери, если в БД такого столбца нет
+            # host
             # listing.host = request.user
             listing.save()
             return redirect("listing_detail", slug=listing.slug)
@@ -78,8 +78,6 @@ def booking_create(request, slug):
         if form.is_valid():
             booking = form.save(commit=False)
             booking.listing = listing
-            # у тебя guest = EmailField (db_column='user_email')
-            # поэтому пишем email, а не объект пользователя
             if request.user.is_authenticated and getattr(request.user, "email", None):
                 booking.guest = request.user.email
             booking.save()
@@ -175,8 +173,8 @@ class BookingAdmin(admin.ModelAdmin):
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
-    list_display = ("id", "listing", "author_email", "rating", "created_at")
-    search_fields = ("listing__title", "author_username")
+    list_display = ("id", "listing", "user_email", "rating", "created_at")
+    search_fields = ("listing__title", "user_username")
 
 @admin.register(ViewHistory)
 class ViewHistoryAdmin(admin.ModelAdmin):

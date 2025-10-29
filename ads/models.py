@@ -82,13 +82,13 @@ class Review(models.Model):
         managed = False  # важное: не мигрируем эту таблицу
 
     listing = models.ForeignKey("Listing", on_delete=models.CASCADE, related_name="reviews")
-    author_email = models.EmailField(max_length=254, db_column="user_email")
-    rating = models.PositiveSmallIntegerField()
-    text = models.TextField(db_column="comment")
-    created_at = models.DateTimeField()
+    user_email = models.CharField(max_length=255)
+    rating = models.IntegerField()
+    comment = models.TextField(db_column="comment")
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.author_email} → {self.listing} ({self.rating})"
+        return f"{self.user_email} → {self.listing} ({self.rating})"
 
 
 # ---------- ViewHistory -> ads_viewhistory ----------
