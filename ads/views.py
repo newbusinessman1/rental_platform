@@ -251,22 +251,22 @@ class ListingDetailView(DetailView):
         return ctx
 
 
+
 @login_required
 def review_create(request, slug):
     """
     Создать отзыв по листингу.
-    Правила:
-      - авторизован
-      - есть approved/finished бронь с прошедшей датой выезда
-      - ещё не оставлял отзыв по этому листингу
+    Разрешено, если есть бронь (approved/finished) с датой выезда <= сегодня
+    и ранее отзыв по этому листингу не оставлялся.
     """
     listing = get_object_or_404(Listing, slug=slug)
 
+    # доступ
     if not _booking_is_past_and_approved_for_user(listing, request.user):
         messages.error(request, "Оставлять отзывы можно только после подтверждённого проживания.")
         return redirect("ads:listing_detail", slug=listing.slug)
 
-    # в БД автор хранится как email в поле user_email
+    # уже есть отзыв от этого e-mail для этого листинга?
     if Review.objects.filter(listing=listing, user_email=(request.user.email or "")).exists():
         messages.info(request, "Вы уже оставляли отзыв для этого объявления.")
         return redirect("ads:listing_detail", slug=listing.slug)
@@ -276,15 +276,25 @@ def review_create(request, slug):
         if form.is_valid():
             review = form.save(commit=False)
             review.listing = listing
+            # у модели поле называется user_email
             review.user_email = request.user.email or ""
-            # <<< ключевая строка: проставляем created_at явно >>>
-            if not getattr(review, "created_at", None):
-                from django.utils import timezone
+
+            # На некоторых unmanaged таблицах auto_now_add не срабатывает корректно.
+            # Подстрахуемся, чтобы не получить "created_at cannot be null".
+            if hasattr(review, "created_at") and not review.created_at:
                 review.created_at = timezone.now()
+
+            # (подстраховка) если вдруг шаблон прислал другое имя поля — добьём руками
+            if not getattr(review, "comment", None):
+                review.comment = (request.POST.get("comment") or
+                                  request.POST.get("text") or "").strip()
+
             review.save()
             messages.success(request, "Спасибо! Ваш отзыв сохранён.")
             return redirect("ads:listing_detail", slug=listing.slug)
-        messages.error(request, "Проверьте форму отзыва.")
+        else:
+            messages.error(request, "Проверьте форму отзыва.")
+
     return redirect("ads:listing_detail", slug=listing.slug)
 
 
