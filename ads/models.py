@@ -12,7 +12,7 @@ class Listing(models.Model):
         db_table = "ads_listing"
         managed = False  # НЕ трогаем существующую БД миграциями
 
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, unique=True) #уникальное название
     slug = models.SlugField(max_length=255, unique=True, db_index=True, blank=True, null=True)
     description = models.TextField(blank=True)
 

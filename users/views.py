@@ -30,7 +30,7 @@ class RegisterView(View):
             group, _ = Group.objects.get_or_create(name=group_name)
             user.groups.add(group)
 
-            # 3) профиль — безопасно (не упадёт, если уже есть)
+            # 3) профиль — безопасно
             Profile.objects.get_or_create(user=user, defaults={"role": role})
 
             # 4) логиним и уводим на главную (PRG-паттерн)

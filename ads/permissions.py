@@ -1,74 +1,33 @@
-from django.db.models import Count
-from rest_framework import viewsets, generics, status
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from .models import Listing, Booking, Review, ViewHistory
-from .serializers import ListingSerializer, BookingSerializer, ReviewSerializer, ViewHistorySerializer
+from rest_framework.permissions import BasePermission, SAFE_METHODS
+from .models import Booking
 
-
-class ListingViewSet(viewsets.ModelViewSet):
-    queryset = Listing.objects.all().order_by("-id")
-    serializer_class = ListingSerializer
-    permission_classes = [AllowAny]
-
-
-class BookingViewSet(viewsets.ModelViewSet):
-    queryset = Booking.objects.all().order_by("-id")
-    serializer_class = BookingSerializer
-    permission_classes = [AllowAny]
-
-
-class ReviewViewSet(viewsets.ModelViewSet):
-    queryset = Review.objects.all().order_by("-id")
-    serializer_class = ReviewSerializer
-    permission_classes = [AllowAny]
-
-
-class PopularListingView(generics.ListAPIView):
-    serializer_class = ListingSerializer
-    permission_classes = [AllowAny]
-
-    def get_queryset(self):
-        return (
-            Listing.objects
-            .annotate(booking_count=Count("bookings"))
-            .order_by("-booking_count", "-id")[:10]
+class IsAuthenticatedOrReadOnly(BasePermission):
+    """Чтение всем, изменять — только аутентифицированным."""
+    def has_permission(self, request, view):
+        return request.method in SAFE_METHODS or (
+            request.user and request.user.is_authenticated
         )
 
+class IsListingOwnerOrReadOnly(BasePermission):
+    """
+    Редактировать Listing может только владелец (owner_email).
+    Object-level проверка, чтобы browsable API не падал.
+    """
+    def has_permission(self, request, view):
+        return True
 
-class SearchStatsView(generics.GenericAPIView):
-    permission_classes = [AllowAny]
+    def has_object_permission(self, request, view, obj):
+        if request.method in SAFE_METHODS:
+            return True
+        user_email = (getattr(request.user, "email", "") or "").strip().lower()
+        return (obj.owner_email or "").strip().lower() == user_email
 
-    def get(self, request, *args, **kwargs):
-        data = (
-            Listing.objects.values("city")
-            .annotate(total=Count("id"))
-            .order_by("-total")
-        )
-        return Response(list(data))
+class IsHostOfBooking(BasePermission):
+    """Approve/decline брони — только владелец объявления этой брони."""
+    def has_permission(self, request, view):
+        return True
 
-
-class ViewHistoryView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request, *args, **kwargs):
-        """
-        Ожидает JSON: { "listing": <id> }.
-        IP и User-Agent вытянем из запроса.
-        """
-        listing_id = request.data.get("listing")
-        if not listing_id:
-            return Response({"detail": "listing is required"}, status=400)
-
-        try:
-            listing = Listing.objects.get(pk=listing_id)
-        except Listing.DoesNotExist:
-            return Response({"detail": "listing not found"}, status=404)
-
-        entry = ViewHistory.objects.create(
-            listing=listing,
-            ip=request.META.get("REMOTE_ADDR"),
-            user_agent=request.META.get("HTTP_USER_AGENT", "")[:512],
-        )
-        return Response(ViewHistorySerializer(entry).data, status=status.HTTP_201_CREATED)
+    def has_object_permission(self, request, view, obj: Booking):
+        user_email = (getattr(request.user, "email", "") or "").strip().lower()
+        owner = (getattr(obj.listing, "owner_email", "") or "").strip().lower()
+        return owner == user_email

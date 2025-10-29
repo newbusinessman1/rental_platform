@@ -21,16 +21,28 @@ INSTALLED_APPS = [
     "django_filters",
     "users",
     "ads",
+    "drf_spectacular",
+    "drf_spectacular_sidecar"
 ]
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
+    "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
-    ),
-    "DEFAULT_PERMISSION_CLASSES": (
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
-    ),
+    ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "StayFinder API",
+    "DESCRIPTION": "REST API для листингов, броней и отзывов",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,  # схему отдаём отдельно
+    # опционально:
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SCHEMA_PATH_PREFIX": r"/ads/api",
 }
 
 MIDDLEWARE = [
