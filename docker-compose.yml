@@ -1,14 +1,16 @@
-version: '3.9'
+
 services:
   web:
-    build: .
-    environment:
-      SECRET_KEY: super-secret
-      DEBUG: "1"
-      # MYSQL_NAME: rentaldb
-      # MYSQL_USER: student_user
-      # MYSQL_PASSWORD: student_pass
-      # MYSQL_HOST: school.mysql.host
-      # MYSQL_PORT: 3306
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stayfinder_web
+
+    command: python manage.py runserver 0.0.0.0:8000
+    env_file:
+      - .env
     ports:
       - "8000:8000"
+    volumes:
+      - .:/app
+    restart: unless-stopped
