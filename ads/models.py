@@ -56,10 +56,12 @@ class Booking(models.Model):
     STATUS_PENDING = "pending"
     STATUS_APPROVED = "approved"
     STATUS_DECLINED = "declined"
+    STATUS_FINISHED = "finished"
     STATUS_CHOICES = [
         (STATUS_PENDING, "Pending"),
         (STATUS_APPROVED, "Approved"),
         (STATUS_DECLINED, "Declined"),
+        (STATUS_FINISHED, "Finished"),
     ]
 
 

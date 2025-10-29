@@ -1,6 +1,6 @@
 from functools import wraps
 from datetime import datetime as _dt, timedelta as _td
-
+from .utils import auto_finish_bookings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -18,7 +18,7 @@ from django.views.generic import ListView, DetailView, TemplateView
 from rest_framework import viewsets, permissions, generics, decorators, response
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from django.core.exceptions import FieldDoesNotExist
 from .forms import ListingForm, BookingForm, ReviewForm
 from .models import Listing, Booking, Review, ViewHistory
 from .serializers import ListingSerializer, BookingSerializer, ReviewSerializer
@@ -49,10 +49,22 @@ class HomeView(ListView):
                 pass
         return None
 
+
+
+    def _has_field(model, name: str) -> bool:
+        try:
+            model._meta.get_field(name)
+            return True
+        except FieldDoesNotExist:
+            return False
+
     def get_queryset(self):
         from django.db.models import Count, Avg, Q, Exists, OuterRef
+
         q = (self.request.GET.get("q") or "").strip()
-        check_in  = self._parse_date(self.request.GET.get("check_in"))
+
+        # даты из строки → date
+        check_in = self._parse_date(self.request.GET.get("check_in"))
         check_out = self._parse_date(self.request.GET.get("check_out"))
 
         qs = (
@@ -60,7 +72,7 @@ class HomeView(ListView):
             .annotate(
                 reviews_count=Count("reviews"),
                 avg_rating=Avg("reviews__rating"),
-                views_count=Count("views"),   # <= ВСЕГДА есть в списке
+                views_count=Count("views"),
             )
             .order_by("-id")
         )
@@ -72,12 +84,23 @@ class HomeView(ListView):
                 Q(description__icontains=q)
             )
 
+        # фильтрация по доступности: строим условие только по тем полям, которые реально есть
         if check_in and check_out and check_in <= check_out:
-            overlapping = Booking.objects.filter(listing_id=OuterRef("pk")).filter(
-                Q(check_in__lte=check_out, check_out__gte=check_in) |
-                Q(start_date__lte=check_out, end_date__gte=check_in)
-            )
-            qs = qs.annotate(has_overlap=Exists(overlapping)).filter(has_overlap=False)
+            # определяем имена полей периода в Booking
+            if _has_field(Booking, "check_in") and _has_field(Booking, "check_out"):
+                start_f, end_f = "check_in", "check_out"
+            elif _has_field(Booking, "start_date") and _has_field(Booking, "end_date"):
+                start_f, end_f = "start_date", "end_date"
+            else:
+                start_f = end_f = None  # на всякий случай, если схема «нестандартная»
+
+            if start_f and end_f:
+                overlapping = (
+                    Booking.objects
+                    .filter(listing_id=OuterRef("pk"))
+                    .filter(Q(**{f"{start_f}__lte": check_out, f"{end_f}__gte": check_in}))
+                )
+                qs = qs.annotate(has_overlap=Exists(overlapping)).filter(has_overlap=False)
 
         return qs
 
