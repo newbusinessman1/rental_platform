@@ -1,7 +1,7 @@
-# ads/serializers.py
 from rest_framework import serializers
 from .models import Listing, Booking, Review
 
+# --- Listings ---
 class ListingSerializer(serializers.ModelSerializer):
     reviews_count = serializers.IntegerField(read_only=True)
     avg_rating = serializers.FloatField(read_only=True)
@@ -16,14 +16,14 @@ class ListingSerializer(serializers.ModelSerializer):
         read_only_fields = ["slug", "owner_email", "created_at", "reviews_count", "avg_rating"]
 
 
+# --- Bookings ---
 class BookingSerializer(serializers.ModelSerializer):
     listing_title = serializers.CharField(source="listing.title", read_only=True)
 
     class Meta:
         model = Booking
         fields = [
-            "id",
-            "listing", "listing_title",
+            "id", "listing", "listing_title",
             "guest",
             "check_in", "check_out",
             "status", "created_at",
@@ -32,14 +32,16 @@ class BookingSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         listing = attrs.get("listing") or getattr(self.instance, "listing", None)
-        ci = attrs.get("check_in") or getattr(self.instance, "check_in", None)
-        co = attrs.get("check_out") or getattr(self.instance, "check_out", None)
+        ci = attrs.get("check_in")
+        co = attrs.get("check_out")
 
         if not (ci and co):
             raise serializers.ValidationError("Укажите даты заезда и выезда.")
         if ci >= co:
             raise serializers.ValidationError("Дата выезда должна быть позже даты заезда.")
 
+        # Проверка пересечений
+        from .models import Booking
         qs = Booking.objects.filter(listing=listing).exclude(pk=getattr(self.instance, "pk", None))
         overlap = qs.filter(
             check_in__lt=co,
@@ -61,44 +63,51 @@ class BookingSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-# ads/serializers.py (фрагмент)
-
-from rest_framework import serializers
-from .models import Listing, Booking, Review
-
-# ... ListingSerializer и BookingSerializer — без изменений ...
-
+# --- Reviews ---
 class ReviewSerializer(serializers.ModelSerializer):
-    listing_title = serializers.CharField(source="listing.title", read_only=True)
-
+    # в модели: user_email, rating, comment, created_at
     class Meta:
         model = Review
-        fields = [
-            "id", "listing", "listing_title",
-            "author_email", "rating", "created_at",
-        ]
-        read_only_fields = ["author_email", "created_at"]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # показываем в API всегда ключ "comment"
-        # если в модели есть поле comment — биндим напрямую,
-        # иначе биндим на поле text.
-        if hasattr(Review, "comment"):
-            self.fields["comment"] = serializers.CharField()
-            self._comment_field_name = "comment"
-        else:
-            self.fields["comment"] = serializers.CharField(source="text")
-            self._comment_field_name = "text"
+        fields = ["id", "listing", "user_email", "rating", "comment", "created_at"]
+        read_only_fields = ["user_email", "created_at"]
 
     def create(self, validated_data):
-        # подставим email автора
         request = self.context.get("request")
         if request and request.user.is_authenticated:
-            validated_data["author_email"] = request.user.email or ""
-
-        # если пришёл ключ "comment", а в модели поле называется иначе — переложим
-        if "comment" in validated_data and self._comment_field_name != "comment":
-            validated_data[self._comment_field_name] = validated_data.pop("comment")
-
+            validated_data["user_email"] = request.user.email or ""
         return super().create(validated_data)
+
+
+# --- Вспомогательные сериализаторы для APIViews ---
+class PopularListingItemSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    slug = serializers.CharField()
+    location = serializers.CharField(allow_null=True, allow_blank=True)
+    price_per_night = serializers.DecimalField(max_digits=10, decimal_places=2)
+    views_count = serializers.IntegerField()
+    reviews_count = serializers.IntegerField()
+    avg_rating = serializers.FloatField(allow_null=True)
+
+
+class TypeCountSerializer(serializers.Serializer):
+    type = serializers.CharField()
+    cnt = serializers.IntegerField()
+
+
+class LocationCountSerializer(serializers.Serializer):
+    location = serializers.CharField(allow_null=True, allow_blank=True)
+    cnt = serializers.IntegerField()
+
+
+class SearchStatsSerializer(serializers.Serializer):
+    by_type = TypeCountSerializer(many=True)
+    top_locations = LocationCountSerializer(many=True)
+
+
+class ViewHistoryItemSerializer(serializers.Serializer):
+    listing = serializers.CharField()
+    listing_id = serializers.IntegerField()
+    user = serializers.CharField(allow_null=True)
+    ip = serializers.CharField(allow_null=True)
+    when = serializers.DateTimeField()

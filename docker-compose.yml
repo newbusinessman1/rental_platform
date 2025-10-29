@@ -1,33 +1,38 @@
-version: '3.9'
-
 services:
   db:
-    image: mysql:8.0
+    image: mariadb:10.11
     container_name: stayfinder_db
-    restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: stayfinder
-      MYSQL_USER: stayfinder
-      MYSQL_PASSWORD: stayfinder
+      MYSQL_DATABASE: ${MYSQL_NAME}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   web:
     build: .
     container_name: stayfinder_web
-    restart: always
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/app
     ports:
       - "8000:8000"
-    depends_on:
-      - db
     env_file:
       - .env
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   mysql_data:

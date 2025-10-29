@@ -1,7 +1,11 @@
 # ads/views.py
 from functools import wraps
 from datetime import datetime as _dt, timedelta as _td
-
+from drf_spectacular.utils import extend_schema, OpenApiResponse
+from .serializers import (
+    ListingSerializer, BookingSerializer, ReviewSerializer,
+    PopularListingItemSerializer, SearchStatsSerializer, ViewHistoryItemSerializer
+)
 from django.contrib import messages
 from django.contrib.auth import login as auth_login
 from django.contrib.auth.decorators import login_required
@@ -27,7 +31,7 @@ from .permissions import (
     IsHostOfBooking,
     IsListingOwnerOrReadOnly,
 )
-from .serializers import BookingSerializer, ListingSerializer, ReviewSerializer
+
 from .utils import auto_finish_bookings
 
 
@@ -384,7 +388,12 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
 
 class PopularListingView(APIView):
+    @extend_schema(
+        responses={200: PopularListingItemSerializer(many=True)},
+        description="Топ-10 листингов по просмотрам/отзывам"
+    )
     def get(self, request):
+        from django.db.models import Count, Avg
         qs = (
             Listing.objects
             .annotate(
@@ -393,23 +402,32 @@ class PopularListingView(APIView):
                 avg_rating=Avg("reviews__rating"),
             )
             .order_by("-views_count", "-reviews_count")[:10]
+            .values("id", "title", "slug", "location", "price_per_night",
+                    "views_count", "reviews_count", "avg_rating")
         )
-        return Response(ListingSerializer(qs, many=True).data)
+        return Response(list(qs))
 
 
 class SearchStatsView(APIView):
+    @extend_schema(
+        responses={200: SearchStatsSerializer},
+        description="Агрегированная статистика по типам и топ-локациям"
+    )
     def get(self, request):
-        by_type = Listing.objects.values("type").annotate(cnt=Count("id")).order_by("-cnt")
-        by_location = (
+        from django.db.models import Count
+        by_type = list(Listing.objects.values("type").annotate(cnt=Count("id")).order_by("-cnt"))
+        top_locations = list(
             Listing.objects.values("location").annotate(cnt=Count("id")).order_by("-cnt")[:10]
         )
-        return Response({"by_type": list(by_type), "top_locations": list(by_location)})
+        return Response({"by_type": by_type, "top_locations": top_locations})
 
 
 class ViewHistoryView(generics.ListAPIView):
     queryset = ViewHistory.objects.select_related("listing", "user").order_by("-id")
     permission_classes = [permissions.AllowAny]
+    serializer_class = ViewHistoryItemSerializer  # <-- ВАЖНО для drf-spectacular
 
+    @extend_schema(responses={200: ViewHistoryItemSerializer(many=True)})
     def list(self, request, *args, **kwargs):
         data = [{
             "listing": vh.listing.title,
